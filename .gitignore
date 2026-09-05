@@ -4,3 +4,5 @@ dist/
 .astro/
 .superpowers/
 src-tauri/gen/
+src-tauri/binaries/*
+!src-tauri/binaries/.gitkeep
