@@ -171,10 +171,26 @@ import '../styles/global.css';
 
       const group = document.getElementById('cookie-group')!;
       const note = document.getElementById('cookie-note')!;
-      for (const support of await browserSupport()) {
+
+      const cookieOption = (value: string, text: string, disabled: boolean): HTMLLabelElement => {
         const label = document.createElement('label');
         label.className = 'flex items-center gap-1';
-        label.innerHTML = `<input type="radio" name="cookie-browser" data-setting="cookie-browser" value="${support.browser}" ${support.supported ? '' : 'disabled'} /> ${support.browser === 'chrome' ? 'Chrome' : 'Firefox'}`;
+        const radio = document.createElement('input');
+        radio.type = 'radio';
+        radio.name = 'cookie-browser';
+        radio.dataset.setting = 'cookie-browser';
+        radio.value = value;
+        radio.disabled = disabled;
+        label.append(radio, ` ${text}`);
+        return label;
+      };
+
+      for (const support of await browserSupport()) {
+        const label = cookieOption(
+          support.browser,
+          support.browser === 'chrome' ? 'Chrome' : 'Firefox',
+          !support.supported,
+        );
         if (!support.supported) label.classList.add('text-neutral-400');
         group.append(label);
         if (support.reason) note.textContent = support.reason;
