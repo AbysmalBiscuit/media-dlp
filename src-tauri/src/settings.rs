@@ -105,9 +105,6 @@ pub enum Separator {
 }
 
 impl Separator {
-    // No caller within this module; the filename builder that joins
-    // settings-derived segments into an output name uses this.
-    #[allow(dead_code)]
     pub fn as_str(self) -> &'static str {
         match self {
             Separator::Dash => " - ",
