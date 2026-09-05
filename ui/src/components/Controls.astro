@@ -1,0 +1,70 @@
+<section class="space-y-4">
+  <label class="block">
+    <span class="text-sm font-medium">Video link</span>
+    <input id="url" type="url" placeholder="Paste a link"
+      class="mt-1 w-full rounded border border-neutral-300 px-3 py-2" />
+  </label>
+
+  <label class="block">
+    <span class="text-sm font-medium">Save to</span>
+    <div class="mt-1 flex gap-2">
+      <input id="folder" type="text" readonly
+        class="w-full rounded border border-neutral-300 bg-neutral-50 px-3 py-2" />
+      <button id="browse" type="button"
+        class="rounded bg-neutral-900 px-4 py-2 text-white">Browse</button>
+    </div>
+  </label>
+
+  <label class="flex items-center gap-2">
+    <input id="audio-only" type="checkbox" data-setting="audio-only" />
+    <span class="text-sm font-medium">Audio only</span>
+  </label>
+
+  <fieldset id="video-groups" class="space-y-4">
+    <div>
+      <legend class="text-sm font-medium">Quality</legend>
+      <div class="mt-1 flex gap-4" data-group="video-quality">
+        <label class="flex items-center gap-1"><input type="radio" name="video-quality" data-setting="video-quality" value="best" /> Best available</label>
+        <label class="flex items-center gap-1"><input type="radio" name="video-quality" data-setting="video-quality" value="1080p" /> 1080p</label>
+        <label class="flex items-center gap-1"><input type="radio" name="video-quality" data-setting="video-quality" value="720p" /> 720p</label>
+        <label class="flex items-center gap-1"><input type="radio" name="video-quality" data-setting="video-quality" value="480p" /> 480p</label>
+      </div>
+    </div>
+    <div>
+      <legend class="text-sm font-medium">Video format</legend>
+      <div class="mt-1 flex gap-4" data-group="video-format">
+        <label class="flex items-center gap-1"><input type="radio" name="video-format" data-setting="video-format" value="mp4" /> mp4</label>
+        <label class="flex items-center gap-1"><input type="radio" name="video-format" data-setting="video-format" value="mkv" /> mkv</label>
+        <label class="flex items-center gap-1"><input type="radio" name="video-format" data-setting="video-format" value="webm" /> webm</label>
+      </div>
+    </div>
+  </fieldset>
+
+  <div>
+    <legend class="text-sm font-medium">Audio format</legend>
+    <div class="mt-1 flex gap-4">
+      <label class="flex items-center gap-1"><input type="radio" name="audio-format" data-setting="audio-format" value="mp3" /> mp3</label>
+      <label class="flex items-center gap-1"><input type="radio" name="audio-format" data-setting="audio-format" value="m4a" /> m4a</label>
+      <label class="flex items-center gap-1"><input type="radio" name="audio-format" data-setting="audio-format" value="opus" /> opus</label>
+      <label class="flex items-center gap-1"><input type="radio" name="audio-format" data-setting="audio-format" value="wav" /> wav</label>
+    </div>
+  </div>
+
+  <div>
+    <legend class="text-sm font-medium">Audio quality</legend>
+    <div class="mt-1 flex gap-4">
+      <label class="flex items-center gap-1"><input type="radio" name="audio-quality" data-setting="audio-quality" value="best" /> Best</label>
+      <label class="flex items-center gap-1"><input type="radio" name="audio-quality" data-setting="audio-quality" value="good" /> Good</label>
+      <label class="flex items-center gap-1"><input type="radio" name="audio-quality" data-setting="audio-quality" value="smaller" /> Smaller</label>
+    </div>
+    <p id="quality-note" class="mt-1 text-xs text-neutral-500">
+      m4a and opus copy the audio unchanged, so this setting does nothing for them.
+    </p>
+  </div>
+
+  <div>
+    <legend class="text-sm font-medium">Cookies</legend>
+    <div id="cookie-group" class="mt-1 flex gap-4"></div>
+    <p id="cookie-note" class="mt-1 text-xs text-neutral-500"></p>
+  </div>
+</section>
