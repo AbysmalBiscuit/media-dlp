@@ -120,6 +120,7 @@ pub struct FilenameSettings {
     pub channel: bool,
     pub upload_date: bool,
     pub playlist_number: bool,
+    pub video_id: bool,
     pub separator: Separator,
 }
 
@@ -129,6 +130,7 @@ impl Default for FilenameSettings {
             channel: false,
             upload_date: false,
             playlist_number: true,
+            video_id: true,
             separator: Separator::Dash,
         }
     }
@@ -152,9 +154,18 @@ fn config_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     app.path().app_config_dir().map_err(|e| e.to_string())
 }
 
+/// Keeps a save folder the user already chose; otherwise adopts the fallback
+/// (the platform Downloads directory) when one resolves.
+pub fn resolve_save_folder(current: Option<PathBuf>, fallback: Option<PathBuf>) -> Option<PathBuf> {
+    current.or(fallback)
+}
+
 #[tauri::command]
 pub fn get_settings(app: tauri::AppHandle) -> Result<Settings, String> {
-    Ok(load(&config_dir(&app)?))
+    let mut settings = load(&config_dir(&app)?);
+    settings.save_folder =
+        resolve_save_folder(settings.save_folder, app.path().download_dir().ok());
+    Ok(settings)
 }
 
 #[tauri::command]
@@ -237,5 +248,23 @@ mod tests {
         assert_eq!(Separator::Dash.as_str(), " - ");
         assert_eq!(Separator::Underscore.as_str(), "_");
         assert_eq!(Separator::Space.as_str(), " ");
+    }
+
+    #[test]
+    fn resolve_save_folder_keeps_an_existing_value() {
+        let current = Some(PathBuf::from(r"C:\Existing"));
+        let fallback = Some(PathBuf::from(r"C:\Downloads"));
+        assert_eq!(resolve_save_folder(current.clone(), fallback), current);
+    }
+
+    #[test]
+    fn resolve_save_folder_adopts_the_fallback_when_empty() {
+        let fallback = Some(PathBuf::from(r"C:\Downloads"));
+        assert_eq!(resolve_save_folder(None, fallback.clone()), fallback);
+    }
+
+    #[test]
+    fn resolve_save_folder_stays_none_when_both_are_absent() {
+        assert_eq!(resolve_save_folder(None, None), None);
     }
 }
