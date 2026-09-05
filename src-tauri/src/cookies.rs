@@ -7,8 +7,8 @@ use std::sync::atomic::{AtomicU64, Ordering};
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CookieCheck {
-    /// The registrable domain the check ran against, for the UI to name.
-    pub domain: String,
+    /// The site the warning names. Empty when the URL has no usable host.
+    pub site: String,
     pub status: CookieStatus,
 }
 
@@ -29,14 +29,14 @@ pub async fn cookie_check(url: String, browser: CookieBrowser) -> Result<CookieC
 
 fn check(url: &str, browser: CookieBrowser) -> CookieCheck {
     sweep_stale_copies();
-    let Some(domain) = registrable_domain(url) else {
+    let (Some(site), Some(domain)) = (site_of(url), registrable_domain(url)) else {
         return CookieCheck {
-            domain: String::new(),
+            site: String::new(),
             status: CookieStatus::Unknown,
         };
     };
     let status = status_for(store_holds_domain(browser, &domain));
-    CookieCheck { domain, status }
+    CookieCheck { site, status }
 }
 
 /// A check that could not run is `Unknown`, never `Absent`. A warning that the
@@ -48,6 +48,16 @@ fn status_for(store: Result<bool, String>) -> CookieStatus {
         Ok(false) => CookieStatus::Absent,
         Err(_) => CookieStatus::Unknown,
     }
+}
+
+/// The site a warning names: the URL's host without a leading `www.`.
+///
+/// The store is searched for the broader registrable domain, so a match on the
+/// host implies a match on the domain. Nothing matching the domain therefore
+/// means nothing matched the host either, and naming the host stays truthful.
+fn site_of(url: &str) -> Option<String> {
+    let host = host_of(url)?;
+    Some(host.strip_prefix("www.").unwrap_or(&host).to_string())
 }
 
 /// Derives the registrable domain of a URL: `instagram.com` from
@@ -442,10 +452,57 @@ mod tests {
     }
 
     #[test]
-    fn an_unparseable_url_reports_unknown_without_a_domain() {
+    fn an_unparseable_url_reports_unknown_without_a_site() {
         let check = check("not a url", CookieBrowser::Firefox);
         assert_eq!(check.status, CookieStatus::Unknown);
-        assert!(check.domain.is_empty());
+        assert!(check.site.is_empty());
+    }
+
+    #[test]
+    fn a_www_host_is_named_without_its_prefix() {
+        assert_eq!(
+            site_of("https://www.instagram.com/reel/DcxYeDDvkUG/").as_deref(),
+            Some("instagram.com")
+        );
+    }
+
+    #[test]
+    fn a_bare_host_is_named_whole() {
+        assert_eq!(
+            site_of("https://m.youtube.com/watch?v=abc").as_deref(),
+            Some("m.youtube.com")
+        );
+    }
+
+    #[test]
+    fn a_port_is_not_part_of_the_site() {
+        assert_eq!(
+            site_of("https://www.example.com:8443/watch").as_deref(),
+            Some("example.com")
+        );
+    }
+
+    #[test]
+    fn a_short_link_host_is_named_whole() {
+        assert_eq!(
+            site_of("https://youtu.be/dQw4w9WgXcQ").as_deref(),
+            Some("youtu.be")
+        );
+    }
+
+    #[test]
+    fn a_host_under_a_multi_label_suffix_is_named_in_full() {
+        assert_eq!(
+            site_of("https://www.bbc.co.uk/iplayer").as_deref(),
+            Some("bbc.co.uk")
+        );
+    }
+
+    #[test]
+    fn an_unparseable_string_has_no_site() {
+        assert_eq!(site_of("not a url"), None);
+        assert_eq!(site_of(""), None);
+        assert_eq!(site_of("https://"), None);
     }
 
     fn test_dir() -> PathBuf {
