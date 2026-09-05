@@ -1,1 +1,32 @@
 @import "tailwindcss";
+
+:root {
+  --surface: #ffffff;
+  --surface-muted: #f5f5f5;
+  --ink: #171717;
+  --ink-muted: #737373;
+  --line: #d4d4d4;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --surface: #171717;
+    --surface-muted: #262626;
+    --ink: #fafafa;
+    --ink-muted: #a3a3a3;
+    --line: #404040;
+  }
+}
+
+:root[data-theme="dark"] {
+  --surface: #171717;
+  --surface-muted: #262626;
+  --ink: #fafafa;
+  --ink-muted: #a3a3a3;
+  --line: #404040;
+}
+
+body {
+  background: var(--surface);
+  color: var(--ink);
+}

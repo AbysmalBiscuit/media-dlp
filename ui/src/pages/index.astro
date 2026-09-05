@@ -1,6 +1,7 @@
 ---
 import Controls from '../components/Controls.astro';
 import Filename from '../components/Filename.astro';
+import SettingsPanel from '../components/SettingsPanel.astro';
 import '../styles/global.css';
 ---
 
@@ -10,20 +11,37 @@ import '../styles/global.css';
     <meta name="viewport" content="width=device-width" />
     <title>media-dlp</title>
   </head>
-  <body class="bg-white text-neutral-900">
+  <body class="bg-[var(--surface)] text-[var(--ink)]">
     <main class="mx-auto max-w-xl space-y-4 p-6">
-      <h1 class="text-xl font-semibold">media-dlp</h1>
+      <div class="flex items-center justify-between">
+        <h1 class="text-xl font-semibold">media-dlp</h1>
+        <SettingsPanel />
+      </div>
       <Controls />
       <Filename />
     </main>
 
     <script>
       import { open } from '@tauri-apps/plugin-dialog';
-      import { browserSupport, getSettings, saveSettings } from '../lib/api';
+      import { openPath } from '@tauri-apps/plugin-opener';
+      import {
+        browserSupport,
+        checkForUpdates,
+        configPath,
+        getSettings,
+        saveSettings,
+        ytdlpVersion,
+      } from '../lib/api';
       import { previewFilename } from '../lib/filename';
       import type { FilenameSettings, ProbeInfo, Separator, Settings } from '../lib/types';
 
       const settings: Settings = await getSettings();
+
+      const applyTheme = () => {
+        const root = document.documentElement;
+        if (settings.theme === 'system') root.removeAttribute('data-theme');
+        else root.setAttribute('data-theme', settings.theme);
+      };
 
       let probed: ProbeInfo | null = null;
 
@@ -87,6 +105,20 @@ import '../styles/global.css';
             }
             break;
           }
+          case 'theme': {
+            const { value } = input;
+            if (value === 'system' || value === 'light' || value === 'dark') {
+              settings.theme = value;
+            }
+            break;
+          }
+          case 'update-channel': {
+            const { value } = input;
+            if (value === 'stable' || value === 'nightly' || value === 'master') {
+              settings['update-channel'] = value;
+            }
+            break;
+          }
           default:
             return;
         }
@@ -134,8 +166,27 @@ import '../styles/global.css';
         if (support.reason) note.textContent = support.reason;
       }
 
+      const dialog = document.getElementById('settings') as HTMLDialogElement;
+      document.getElementById('open-settings')!.addEventListener('click', () => dialog.showModal());
+      document.getElementById('close-settings')!.addEventListener('click', () => dialog.close());
+
+      const path = await configPath();
+      document.getElementById('config-path')!.textContent = path;
+      document.getElementById('open-config')!.addEventListener('click', () => openPath(path));
+
+      const version = document.getElementById('version')!;
+      version.textContent = `yt-dlp ${await ytdlpVersion()}`;
+      document.getElementById('update-now')!.addEventListener('click', async () => {
+        version.textContent = 'Checking...';
+        await checkForUpdates(settings['update-channel']);
+        version.textContent = `yt-dlp ${await ytdlpVersion()}`;
+      });
+
+      document.addEventListener('change', applyTheme);
+
       apply();
       refreshPreview();
+      applyTheme();
     </script>
   </body>
 </html>

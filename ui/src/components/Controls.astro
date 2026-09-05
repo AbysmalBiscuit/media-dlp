@@ -2,14 +2,14 @@
   <label class="block">
     <span class="text-sm font-medium">Video link</span>
     <input id="url" type="url" placeholder="Paste a link"
-      class="mt-1 w-full rounded border border-neutral-300 px-3 py-2" />
+      class="mt-1 w-full rounded border border-[var(--line)] px-3 py-2" />
   </label>
 
   <label class="block">
     <span class="text-sm font-medium">Save to</span>
     <div class="mt-1 flex gap-2">
       <input id="folder" type="text" readonly
-        class="w-full rounded border border-neutral-300 bg-neutral-50 px-3 py-2" />
+        class="w-full rounded border border-[var(--line)] bg-[var(--surface-muted)] px-3 py-2" />
       <button id="browse" type="button"
         class="rounded bg-neutral-900 px-4 py-2 text-white">Browse</button>
     </div>
@@ -57,7 +57,7 @@
       <label class="flex items-center gap-1"><input type="radio" name="audio-quality" data-setting="audio-quality" value="good" /> Good</label>
       <label class="flex items-center gap-1"><input type="radio" name="audio-quality" data-setting="audio-quality" value="smaller" /> Smaller</label>
     </div>
-    <p id="quality-note" class="mt-1 text-xs text-neutral-500">
+    <p id="quality-note" class="mt-1 text-xs text-[var(--ink-muted)]">
       m4a and opus copy the audio unchanged, so this setting does nothing for them.
     </p>
   </fieldset>
@@ -65,6 +65,6 @@
   <fieldset class="m-0 border-0 p-0">
     <legend class="text-sm font-medium">Cookies</legend>
     <div id="cookie-group" class="mt-1 flex gap-4"></div>
-    <p id="cookie-note" class="mt-1 text-xs text-neutral-500"></p>
+    <p id="cookie-note" class="mt-1 text-xs text-[var(--ink-muted)]"></p>
   </fieldset>
 </section>
