@@ -175,11 +175,22 @@ import '../styles/global.css';
       document.getElementById('open-config')!.addEventListener('click', () => openPath(path));
 
       const version = document.getElementById('version')!;
-      version.textContent = `yt-dlp ${await ytdlpVersion()}`;
+      const showVersion = async () => {
+        try {
+          version.textContent = `yt-dlp ${await ytdlpVersion()}`;
+        } catch {
+          version.textContent = "Couldn't read the yt-dlp version.";
+        }
+      };
+      await showVersion();
       document.getElementById('update-now')!.addEventListener('click', async () => {
         version.textContent = 'Checking...';
-        await checkForUpdates(settings['update-channel']);
-        version.textContent = `yt-dlp ${await ytdlpVersion()}`;
+        try {
+          await checkForUpdates(settings['update-channel']);
+          await showVersion();
+        } catch {
+          version.textContent = "Couldn't check for updates.";
+        }
       });
 
       document.addEventListener('change', applyTheme);
