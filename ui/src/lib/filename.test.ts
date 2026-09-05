@@ -42,3 +42,13 @@ test('a chip whose field is missing contributes nothing', () => {
 test('without a probe the preview uses a neutral stand-in', () => {
   expect(previewFilename(chips(), null, 'mp4')).toBe('Video title.mp4');
 });
+
+test('the space separator joins chips with a plain space', () => {
+  const f = chips({ channel: true, separator: 'space' });
+  expect(previewFilename(f, info, 'mp4')).toBe('A Channel A Video.mp4');
+});
+
+test('characters unsafe in a filename are replaced', () => {
+  const unsafe: ProbeInfo = { ...info, title: 'Part 1: A/B', uploader: null };
+  expect(previewFilename(chips(), unsafe, 'mp4')).toBe('Part 1： A⧸B.mp4');
+});

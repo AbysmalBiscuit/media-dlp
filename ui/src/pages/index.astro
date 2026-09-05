@@ -137,8 +137,8 @@ import '../styles/global.css';
       for (const box of document.querySelectorAll<HTMLInputElement>('[data-filename]')) {
         box.checked = Boolean(settings.filename[box.dataset.filename as keyof FilenameSettings]);
         box.addEventListener('change', async () => {
-          (settings.filename as unknown as Record<string, unknown>)[box.dataset.filename!] =
-            box.checked;
+          const key = box.dataset.filename as 'channel' | 'upload-date' | 'playlist-number';
+          settings.filename[key] = box.checked;
           refreshPreview();
           await saveSettings(settings);
         });
