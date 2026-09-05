@@ -1,5 +1,6 @@
 ---
 import Controls from '../components/Controls.astro';
+import Filename from '../components/Filename.astro';
 import '../styles/global.css';
 ---
 
@@ -10,17 +11,29 @@ import '../styles/global.css';
     <title>media-dlp</title>
   </head>
   <body class="bg-white text-neutral-900">
-    <main class="mx-auto max-w-xl p-6">
+    <main class="mx-auto max-w-xl space-y-4 p-6">
       <h1 class="text-xl font-semibold">media-dlp</h1>
       <Controls />
+      <Filename />
     </main>
 
     <script>
       import { open } from '@tauri-apps/plugin-dialog';
       import { browserSupport, getSettings, saveSettings } from '../lib/api';
-      import type { Settings } from '../lib/types';
+      import { previewFilename } from '../lib/filename';
+      import type { FilenameSettings, ProbeInfo, Separator, Settings } from '../lib/types';
 
       const settings: Settings = await getSettings();
+
+      let probed: ProbeInfo | null = null;
+
+      const extension = () =>
+        settings['audio-only'] ? settings['audio-format'] : settings['video-format'];
+
+      const refreshPreview = () => {
+        document.getElementById('filename-preview')!.textContent =
+          previewFilename(settings.filename, probed, extension());
+      };
 
       const apply = () => {
         for (const input of document.querySelectorAll<HTMLInputElement>('[data-setting]')) {
@@ -51,6 +64,27 @@ import '../styles/global.css';
         await saveSettings(settings);
       });
 
+      for (const box of document.querySelectorAll<HTMLInputElement>('[data-filename]')) {
+        box.checked = Boolean(settings.filename[box.dataset.filename as keyof FilenameSettings]);
+        box.addEventListener('change', async () => {
+          (settings.filename as unknown as Record<string, unknown>)[box.dataset.filename!] =
+            box.checked;
+          refreshPreview();
+          await saveSettings(settings);
+        });
+      }
+
+      for (const radio of document.querySelectorAll<HTMLInputElement>('[data-separator]')) {
+        radio.checked = settings.filename.separator === radio.value;
+        radio.addEventListener('change', async () => {
+          settings.filename.separator = radio.value as Separator;
+          refreshPreview();
+          await saveSettings(settings);
+        });
+      }
+
+      document.addEventListener('change', refreshPreview);
+
       const group = document.getElementById('cookie-group')!;
       const note = document.getElementById('cookie-note')!;
       for (const support of await browserSupport()) {
@@ -63,6 +97,7 @@ import '../styles/global.css';
       }
 
       apply();
+      refreshPreview();
     </script>
   </body>
 </html>

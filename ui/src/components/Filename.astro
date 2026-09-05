@@ -1,0 +1,15 @@
+<section>
+  <span class="text-sm font-medium">File name</span>
+  <div class="mt-1 flex flex-wrap gap-3">
+    <label class="flex items-center gap-1"><input type="checkbox" data-filename="channel" /> Channel</label>
+    <label class="flex items-center gap-1"><input type="checkbox" data-filename="upload-date" /> Upload date</label>
+    <label class="flex items-center gap-1"><input type="checkbox" data-filename="playlist-number" /> Playlist number</label>
+    <label class="flex items-center gap-1 text-neutral-400"><input type="checkbox" checked disabled /> Title</label>
+  </div>
+  <div class="mt-2 flex gap-4">
+    <label class="flex items-center gap-1"><input type="radio" name="separator" data-separator value="dash" /> dash</label>
+    <label class="flex items-center gap-1"><input type="radio" name="separator" data-separator value="underscore" /> underscore</label>
+    <label class="flex items-center gap-1"><input type="radio" name="separator" data-separator value="space" /> space</label>
+  </div>
+  <p id="filename-preview" class="mt-2 truncate rounded bg-neutral-100 px-2 py-1 font-mono text-xs"></p>
+</section>
