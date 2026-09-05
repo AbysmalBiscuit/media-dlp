@@ -1,5 +1,6 @@
 pub mod args;
 pub mod binaries;
+pub mod job;
 pub mod settings;
 
 pub fn run() {
@@ -23,6 +24,7 @@ pub fn run() {
             binaries::browser_support,
             binaries::ytdlp_version,
             binaries::check_for_updates,
+            job::probe,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
