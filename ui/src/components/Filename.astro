@@ -1,16 +1,19 @@
 <section>
-  <span class="text-sm font-medium">File name</span>
-  <div class="mt-1 flex flex-wrap gap-3">
-    <label class="flex items-center gap-1"><input type="checkbox" data-filename="channel" /> Channel</label>
-    <label class="flex items-center gap-1"><input type="checkbox" data-filename="upload-date" /> Upload date</label>
-    <label class="flex items-center gap-1"><input type="checkbox" data-filename="playlist-number" /> Playlist number</label>
-    <label class="flex items-center gap-1"><input type="checkbox" data-filename="video-id" /> Video ID</label>
-    <label class="flex items-center gap-1 text-neutral-400"><input type="checkbox" checked disabled /> Title</label>
+  <span class="field-label">File name</span>
+  <div class="option-grid mt-2">
+    <label class="option"><input type="checkbox" data-filename="channel" /> <span>Channel</span></label>
+    <label class="option"><input type="checkbox" data-filename="upload-date" /> <span>Upload date</span></label>
+    <label class="option"><input type="checkbox" data-filename="playlist-number" /> <span>Playlist number</span></label>
+    <label class="option"><input type="checkbox" data-filename="video-id" /> <span>Video ID</span></label>
+    <label class="option"><input type="checkbox" checked disabled /> <span>Title</span></label>
   </div>
-  <div class="mt-2 flex gap-4">
-    <label class="flex items-center gap-1"><input type="radio" name="separator" data-separator value="dash" /> dash</label>
-    <label class="flex items-center gap-1"><input type="radio" name="separator" data-separator value="underscore" /> underscore</label>
-    <label class="flex items-center gap-1"><input type="radio" name="separator" data-separator value="space" /> space</label>
+
+  <span class="field-label mt-4">Separator</span>
+  <div class="option-grid mt-2">
+    <label class="option"><input type="radio" name="separator" data-separator value="dash" /> <span>Dash</span></label>
+    <label class="option"><input type="radio" name="separator" data-separator value="underscore" /> <span>Underscore</span></label>
+    <label class="option"><input type="radio" name="separator" data-separator value="space" /> <span>Space</span></label>
   </div>
-  <p id="filename-preview" class="mt-2 truncate rounded bg-[var(--surface-muted)] px-2 py-1 font-mono text-xs"></p>
+
+  <p id="filename-preview" class="mt-4 truncate rounded-lg bg-[var(--surface-muted)] px-3 py-2 font-mono text-sm"></p>
 </section>
