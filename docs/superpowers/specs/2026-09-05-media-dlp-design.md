@@ -233,8 +233,8 @@ No test downloads a real video. Such a test would be slow, network-dependent, an
 - A download history or library view.
 - Application self-update. Only yt-dlp self-updates.
 
-## Open questions
+## Resolved during design
 
-1. The Rust scaffold from `cargo init` still sits at the repository root as `Cargo.toml` and `src/main.rs`. The Tauri layout wants the crate at `src-tauri/`. Moving it is destructive, so confirm before the plan does. The Python scaffold from `uv init` has been removed; nothing needs a local interpreter, because the official yt-dlp binary is a PyInstaller build with its own embedded.
-2. Windows code signing. An unsigned installer triggers a SmartScreen warning, which works against an application whose point is being simple to use. A certificate costs money, and an unsigned build may be acceptable here. Decide before packaging is planned.
-3. Which ffmpeg build to bundle. A full build is roughly 80 MB; a build trimmed to the codecs this application needs would be smaller but has to be produced and maintained.
+- The Rust crate lives at `src-tauri/`. The `uv init` scaffold is gone; nothing needs a local interpreter, because the official yt-dlp binary is a PyInstaller build with its own embedded.
+- Windows code signing is skipped. The installer is unsigned and SmartScreen warns on install. Revisit if the application is distributed beyond a handful of machines.
+- ffmpeg ships as a full static build, roughly 80 MB and the bulk of the installer. A trimmed build would have to be produced and maintained, which is not worth the saving here.

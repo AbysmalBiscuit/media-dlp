@@ -21,19 +21,19 @@ kind = "github"
 
 [tasks.fmt]
 description = "Format the Rust sources"
-run = ["cargo", "fmt", "--all"]
+run = ["cargo", "fmt", "--manifest-path", "src-tauri/Cargo.toml", "--all"]
 
 [tasks.lint]
 description = "Clippy across all targets, warnings are errors"
-run = ["cargo", "clippy", "--all-targets", "--", "-D", "warnings"]
+run = ["cargo", "clippy", "--manifest-path", "src-tauri/Cargo.toml", "--all-targets", "--", "-D", "warnings"]
 
 [tasks.test]
 description = "Run the Rust test suite"
-run = ["cargo", "nextest", "run"]
+run = ["cargo", "nextest", "run", "--manifest-path", "src-tauri/Cargo.toml"]
 
 [tasks.fmt-check]
 description = "Fail if the Rust sources are unformatted"
-run = ["cargo", "fmt", "--all", "--check"]
+run = ["cargo", "fmt", "--manifest-path", "src-tauri/Cargo.toml", "--all", "--check"]
 
 [tasks.check]
 description = "Format check, lint and test in one pass"
