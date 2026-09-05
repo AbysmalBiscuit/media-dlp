@@ -225,6 +225,36 @@ import '../styles/global.css';
 
       document.addEventListener('change', applyTheme);
 
+      const button = document.getElementById('download') as HTMLButtonElement;
+      const area = document.getElementById('progress-area')!;
+      const bar = document.getElementById('progress-bar') as HTMLElement;
+      const text = document.getElementById('progress-text')!;
+      const result = document.getElementById('result')!;
+      const resultMessage = document.getElementById('result-message')!;
+      const details = document.getElementById('result-details') as HTMLDetailsElement;
+      const log = document.getElementById('result-log')!;
+      const openButton = document.getElementById('open-folder') as HTMLButtonElement;
+      const cancelButton = document.getElementById('cancel') as HTMLButtonElement;
+      let lastFile = '';
+
+      const showResult = (message: string, showDetails = false, showOpenFolder = false) => {
+        area.hidden = true;
+        button.disabled = false;
+        resultMessage.textContent = message;
+        details.hidden = !showDetails;
+        openButton.hidden = !showOpenFolder;
+        result.hidden = false;
+      };
+
+      // A probe only previews what a URL would download; it must never hide the
+      // progress area or re-enable the Download button for a transfer in flight.
+      const showProbeError = (message: string) => {
+        resultMessage.textContent = message;
+        details.hidden = true;
+        openButton.hidden = true;
+        result.hidden = false;
+      };
+
       const urlInput = document.getElementById('url') as HTMLInputElement;
       const card = document.getElementById('probe-card')!;
       let probeTimer: ReturnType<typeof setTimeout> | undefined;
@@ -253,32 +283,11 @@ import '../styles/global.css';
           } catch {
             probed = null;
             card.hidden = true;
-            showResult('That link could not be read.');
+            showProbeError('That link could not be read.');
           }
           refreshPreview();
         }, 400);
       });
-
-      const button = document.getElementById('download') as HTMLButtonElement;
-      const area = document.getElementById('progress-area')!;
-      const bar = document.getElementById('progress-bar') as HTMLElement;
-      const text = document.getElementById('progress-text')!;
-      const result = document.getElementById('result')!;
-      const resultMessage = document.getElementById('result-message')!;
-      const details = document.getElementById('result-details') as HTMLDetailsElement;
-      const log = document.getElementById('result-log')!;
-      const openButton = document.getElementById('open-folder') as HTMLButtonElement;
-      const cancelButton = document.getElementById('cancel') as HTMLButtonElement;
-      let lastFile = '';
-
-      const showResult = (message: string, showDetails = false, showOpenFolder = false) => {
-        area.hidden = true;
-        button.disabled = false;
-        resultMessage.textContent = message;
-        details.hidden = !showDetails;
-        openButton.hidden = !showOpenFolder;
-        result.hidden = false;
-      };
 
       button.addEventListener('click', async () => {
         const folder = settings['save-folder'];
