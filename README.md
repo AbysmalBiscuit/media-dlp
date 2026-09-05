@@ -8,10 +8,9 @@ A desktop wrapper around yt-dlp. Paste a link, pick a folder, press Download.
 
 ## Tests
 
-`devrun task check` runs formatting, clippy and the Rust suite. `devrun task ui-test` runs the frontend tests.
+`devrun task check` runs formatting, clippy and the Rust suite. `devrun task ui-check` type-checks the frontend and `devrun task ui-test` runs its tests.
 
-No test reaches the network. After changing anything in the argument builder or
-the progress parser, run the smoke check below by hand.
+No test reaches the network. After changing anything in the argument builder or the progress parser, run the smoke check below by hand.
 
 ## Smoke check
 
