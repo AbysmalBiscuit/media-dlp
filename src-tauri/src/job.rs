@@ -129,6 +129,21 @@ fn ytdlp_command(ytdlp: &Path, argv: &[String]) -> tokio::process::Command {
     command
 }
 
+async fn spawn_ytdlp(
+    app: &tauri::AppHandle,
+    settings: &crate::settings::Settings,
+    save_folder: &str,
+    url: &str,
+) -> Result<tokio::process::Child, String> {
+    let bins = binaries::resolve(app)?;
+    let argv = args::download_args(settings, &bins, Path::new(save_folder), url);
+    let mut command = ytdlp_command(&bins.ytdlp, &argv);
+    command
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped());
+    command.spawn().map_err(|e| e.to_string())
+}
+
 async fn run(bins: &BinaryPaths, argv: Vec<String>) -> Result<(String, String), String> {
     let out = ytdlp_command(&bins.ytdlp, &argv)
         .output()
@@ -158,8 +173,66 @@ pub async fn probe(app: tauri::AppHandle, url: String) -> Result<ProbeInfo, Stri
 /// `cancel` never returns while a half-written file could still exist.
 type CancelRequest = oneshot::Sender<oneshot::Sender<()>>;
 
+/// Each reservation gets a generation strictly greater than the last, so a
+/// job that is done can tell whether the slot still holds its own entry or
+/// one a later job has since claimed.
 #[derive(Default)]
-pub struct RunningJob(Mutex<Option<CancelRequest>>);
+struct Slot {
+    next_generation: u64,
+    occupant: Option<(u64, CancelRequest)>,
+}
+
+impl Slot {
+    fn reserve(&mut self, cancel_tx: CancelRequest) -> Option<u64> {
+        if self.occupant.is_some() {
+            return None;
+        }
+        self.next_generation += 1;
+        self.occupant = Some((self.next_generation, cancel_tx));
+        Some(self.next_generation)
+    }
+
+    /// Clears the slot only when it still holds the given generation's
+    /// entry, so a job that has already been superseded by a newer
+    /// reservation cannot evict that newer job's registration.
+    fn release(&mut self, generation: u64) {
+        if self
+            .occupant
+            .as_ref()
+            .is_some_and(|(g, _)| *g == generation)
+        {
+            self.occupant = None;
+        }
+    }
+
+    /// Takes whichever request currently occupies the slot, regardless of
+    /// generation: a cancel always targets whatever job is running now.
+    fn take(&mut self) -> Option<CancelRequest> {
+        self.occupant.take().map(|(_, tx)| tx)
+    }
+
+    #[cfg(test)]
+    fn is_occupied(&self) -> bool {
+        self.occupant.is_some()
+    }
+}
+
+#[derive(Default)]
+pub struct RunningJob(Mutex<Slot>);
+
+impl RunningJob {
+    fn reserve(&self, cancel_tx: CancelRequest) -> Option<u64> {
+        self.0.lock().unwrap().reserve(cancel_tx)
+    }
+
+    fn release(&self, generation: u64) {
+        self.0.lock().unwrap().release(generation);
+    }
+
+    fn take(&self) -> Option<CancelRequest> {
+        self.0.lock().unwrap().take()
+    }
+}
 
 #[derive(Clone, Serialize)]
 struct Finished {
@@ -326,27 +399,24 @@ pub async fn download(
         Cancelled(Option<oneshot::Sender<()>>),
     }
 
-    let (mut child, cancel_rx) = {
-        let mut guard = running.0.lock().unwrap();
-        if guard.is_some() {
-            return Err("A download is already running.".to_string());
+    let (cancel_tx, cancel_rx) = oneshot::channel();
+    let generation = match running.reserve(cancel_tx) {
+        Some(generation) => generation,
+        None => return Err("A download is already running.".to_string()),
+    };
+
+    let mut child = match spawn_ytdlp(&app, &settings, &save_folder, &url).await {
+        Ok(child) => child,
+        Err(e) => {
+            running.release(generation);
+            return Err(e);
         }
-        let bins = binaries::resolve(&app)?;
-        let argv = args::download_args(&settings, &bins, Path::new(&save_folder), &url);
-        let mut command = ytdlp_command(&bins.ytdlp, &argv);
-        command
-            .stdout(std::process::Stdio::piped())
-            .stderr(std::process::Stdio::piped());
-        let child = command.spawn().map_err(|e| e.to_string())?;
-        let (cancel_tx, cancel_rx) = oneshot::channel();
-        *guard = Some(cancel_tx);
-        (child, cancel_rx)
     };
 
     let stdout = match child.stdout.take() {
         Some(stdout) => stdout,
         None => {
-            *running.0.lock().unwrap() = None;
+            running.release(generation);
             let _ = child.kill().await;
             return Err("yt-dlp started with no stdout pipe".to_string());
         }
@@ -354,7 +424,7 @@ pub async fn download(
     let stderr = match child.stderr.take() {
         Some(stderr) => stderr,
         None => {
-            *running.0.lock().unwrap() = None;
+            running.release(generation);
             let _ = child.kill().await;
             return Err("yt-dlp started with no stderr pipe".to_string());
         }
@@ -398,11 +468,10 @@ pub async fn download(
         ack = cancel_rx => Outcome::Cancelled(ack.ok()),
     };
 
-    *running.0.lock().unwrap() = None;
+    running.release(generation);
 
     match outcome {
-        Outcome::Exited(result) => {
-            let status = result.map_err(|e| e.to_string())?;
+        Outcome::Exited(Ok(status)) => {
             let (_, last_file) = stdout_pump.await.unwrap_or_default();
             let collected = stderr_pump.await.unwrap_or_default();
             if status.success() {
@@ -416,23 +485,42 @@ pub async fn download(
                     },
                 );
             }
+            Ok(())
+        }
+        Outcome::Exited(Err(e)) => {
+            cancelled.store(true, Ordering::Relaxed);
+            kill_tree(&mut child).await;
+            let _ = stdout_pump.await;
+            let _ = stderr_pump.await;
+            Err(e.to_string())
         }
         Outcome::Cancelled(ack) => {
             cancelled.store(true, Ordering::Relaxed);
-            kill_tree(&mut child).await;
-            let (destinations, _) = stdout_pump.await.unwrap_or_default();
-            let _ = stderr_pump.await;
-            let folder = PathBuf::from(&save_folder);
-            let _ = tokio::task::spawn_blocking(move || {
-                remove_download_artifacts(&folder, &destinations);
-            })
-            .await;
+            let kill_and_join = async {
+                kill_tree(&mut child).await;
+                let (destinations, _) = stdout_pump.await.unwrap_or_default();
+                let _ = stderr_pump.await;
+                destinations
+            };
+            // A still-running child or a lingering handle on its pipes can
+            // block this indefinitely; past the timeout, an unresponsive
+            // process may still hold the target files, so cleanup is
+            // skipped rather than raced against whatever is holding them.
+            if let Ok(destinations) =
+                tokio::time::timeout(std::time::Duration::from_secs(5), kill_and_join).await
+            {
+                let folder = PathBuf::from(&save_folder);
+                let _ = tokio::task::spawn_blocking(move || {
+                    remove_download_artifacts(&folder, &destinations);
+                })
+                .await;
+            }
             if let Some(ack) = ack {
                 let _ = ack.send(());
             }
+            Ok(())
         }
     }
-    Ok(())
 }
 
 #[tauri::command]
@@ -441,7 +529,7 @@ pub async fn cancel(running: State<'_, RunningJob>, save_folder: String) -> Resu
     // observed; the folder is kept as a parameter only to preserve the
     // existing command signature the frontend already calls against.
     let _save_folder = save_folder;
-    let request = running.0.lock().unwrap().take();
+    let request = running.take();
     if let Some(request) = request {
         let (ack_tx, ack_rx) = oneshot::channel();
         if request.send(ack_tx).is_ok() {
@@ -766,5 +854,38 @@ mod tests {
         assert!(dir.join("someone_elses_download.part").exists());
         assert!(dir.join("a.mp4.parted").exists());
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn reserve_refuses_a_second_job_while_one_is_occupied() {
+        let mut slot = Slot::default();
+        let (tx1, _rx1) = oneshot::channel();
+        assert!(slot.reserve(tx1).is_some());
+        let (tx2, _rx2) = oneshot::channel();
+        assert!(slot.reserve(tx2).is_none());
+    }
+
+    #[test]
+    fn releasing_the_reserving_generation_frees_the_slot() {
+        let mut slot = Slot::default();
+        let (tx, _rx) = oneshot::channel();
+        let generation = slot.reserve(tx).unwrap();
+        slot.release(generation);
+        assert!(!slot.is_occupied());
+    }
+
+    #[test]
+    fn releasing_a_stale_generation_does_not_evict_a_newer_job() {
+        let mut slot = Slot::default();
+        let (tx_a, _rx_a) = oneshot::channel();
+        let generation_a = slot.reserve(tx_a).unwrap();
+        // A cancel (or any other taker) frees the slot before job A gets
+        // around to releasing its own generation.
+        assert!(slot.take().is_some());
+        let (tx_b, _rx_b) = oneshot::channel();
+        let generation_b = slot.reserve(tx_b).unwrap();
+        assert_ne!(generation_a, generation_b);
+        slot.release(generation_a);
+        assert!(slot.is_occupied());
     }
 }
