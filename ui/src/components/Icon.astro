@@ -1,0 +1,21 @@
+---
+import { ICONS, type IconName } from '../lib/icons';
+
+interface Props {
+  name: IconName;
+  size?: number;
+  class?: string;
+}
+
+const { name, size = 20, class: extra = '' } = Astro.props;
+
+// Every icon here sits beside wording that says the same thing, so it is
+// hidden from assistive technology rather than given a label of its own.
+const svg = ICONS[name]
+  .replace('<svg', '<svg aria-hidden="true" focusable="false"')
+  .replace('width="24"', `width="${size}"`)
+  .replace('height="24"', `height="${size}"`)
+  .replace('class="lucide', `class="icon ${extra} lucide`);
+---
+
+<Fragment set:html={svg} />

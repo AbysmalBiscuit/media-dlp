@@ -66,14 +66,14 @@
   body {
     background: var(--surface);
     color: var(--ink);
-    font-size: 1rem;
-    line-height: 1.5;
+    font-size: 1.0625rem;
+    line-height: 1.55;
   }
 
   input[type="checkbox"],
   input[type="radio"] {
-    width: 1.125rem;
-    height: 1.125rem;
+    width: 1.25rem;
+    height: 1.25rem;
     flex: none;
     accent-color: var(--accent);
   }
@@ -85,21 +85,28 @@
 }
 
 @layer components {
+  .icon {
+    flex: none;
+    vertical-align: middle;
+  }
+
   .field-label {
-    display: block;
-    font-size: 0.875rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1.125rem;
     font-weight: 600;
   }
 
   .text-input {
     width: 100%;
-    min-height: 2.75rem;
-    padding: 0.5rem 0.75rem;
+    min-height: 3rem;
+    padding: 0.625rem 0.875rem;
     border: 1px solid var(--line);
     border-radius: 0.5rem;
     background: var(--surface);
     color: var(--ink);
-    font-size: 1rem;
+    font-size: 1.0625rem;
   }
 
   .text-input::placeholder {
@@ -115,11 +122,11 @@
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
-    min-height: 2.75rem;
+    min-height: 3rem;
     padding: 0.5rem 1.125rem;
     border: 1px solid transparent;
     border-radius: 0.5rem;
-    font-size: 1rem;
+    font-size: 1.0625rem;
     font-weight: 500;
     cursor: pointer;
   }
@@ -134,8 +141,8 @@
   .btn-primary {
     background: var(--accent);
     color: var(--accent-ink);
-    min-height: 3.25rem;
-    font-size: 1.0625rem;
+    min-height: 3.5rem;
+    font-size: 1.1875rem;
     font-weight: 600;
   }
 
@@ -154,12 +161,12 @@
   }
 
   .btn-quiet {
-    min-height: 2.5rem;
+    min-height: 2.75rem;
     padding: 0.375rem 0.875rem;
     border-color: var(--line);
     background: var(--surface);
     color: var(--ink);
-    font-size: 0.875rem;
+    font-size: 1rem;
   }
 
   .btn-quiet:hover:not(:disabled) {
@@ -176,9 +183,12 @@
 
   /* Sits in the gap the browser cuts in the fieldset's top border. */
   .card-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
     margin-inline-start: -0.25rem;
     padding-inline: 0.25rem;
-    font-size: 0.875rem;
+    font-size: 1.0625rem;
     font-weight: 600;
   }
 
@@ -186,12 +196,12 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    min-height: 2.5rem;
-    padding: 0.5rem 0.75rem;
+    min-height: 2.75rem;
+    padding: 0.5rem 0.875rem;
     border: 1px solid transparent;
     border-radius: 0.5rem;
     background: var(--surface-muted);
-    font-size: 0.9375rem;
+    font-size: 1rem;
     cursor: pointer;
   }
 
@@ -225,12 +235,12 @@
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    min-height: 3rem;
+    min-height: 3.25rem;
     padding: 0.75rem 1rem;
     border: 1px solid var(--line);
     border-radius: 0.75rem;
     background: var(--surface);
-    font-size: 1rem;
+    font-size: 1.0625rem;
     font-weight: 500;
     cursor: pointer;
   }
@@ -267,7 +277,7 @@
 
   .note {
     color: var(--ink-muted);
-    font-size: 0.875rem;
+    font-size: 0.9375rem;
   }
 
   .note:empty {
@@ -280,7 +290,7 @@
     border-radius: 0.5rem;
     background: var(--warn-surface);
     color: var(--warn-ink);
-    font-size: 0.9375rem;
+    font-size: 1rem;
   }
 
   .warning:empty {
@@ -299,12 +309,18 @@
     align-items: center;
     justify-content: space-between;
     gap: 0.75rem;
-    padding: 0.875rem 1rem;
-    font-size: 1rem;
+    padding: 1rem;
+    font-size: 1.125rem;
     font-weight: 600;
     list-style: none;
     cursor: pointer;
     user-select: none;
+  }
+
+  .disclosure-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
   }
 
   .disclosure-summary::-webkit-details-marker {
@@ -360,7 +376,7 @@
     border-radius: 0.5rem;
     background: var(--surface-muted);
     color: var(--ink);
-    font-size: 0.75rem;
+    font-size: 0.8125rem;
     white-space: pre-wrap;
   }
 
