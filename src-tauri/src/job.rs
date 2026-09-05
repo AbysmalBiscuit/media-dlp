@@ -1,9 +1,12 @@
 use crate::args::{self, BinaryPaths};
 use crate::binaries;
 use serde::Serialize;
-use std::sync::Mutex;
+use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 use tauri::{Emitter, State};
-use tokio::io::{AsyncBufReadExt, BufReader};
+use tokio::io::{AsyncBufReadExt, AsyncRead, BufReader};
+use tokio::sync::oneshot;
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -72,12 +75,17 @@ pub struct Progress {
     pub title: Option<String>,
 }
 
-fn field<T: std::str::FromStr>(raw: &str) -> Option<T> {
+/// yt-dlp's byte-count fields are normally plain integers, but
+/// `total_bytes_estimate` is computed by true division in Python and can
+/// render as e.g. `10485760.0`; falling back to the integer part before the
+/// first `.` keeps that value usable instead of silently becoming `None`.
+fn numeric_field<T: std::str::FromStr>(raw: &str) -> Option<T> {
     if raw == "NA" || raw.is_empty() {
-        None
-    } else {
-        raw.parse().ok()
+        return None;
     }
+    raw.parse()
+        .ok()
+        .or_else(|| raw.split('.').next().and_then(|whole| whole.parse().ok()))
 }
 
 /// Fields are tab-separated with the title last: `splitn` bounds the split so a
@@ -98,14 +106,14 @@ pub fn parse_progress_line(line: &str) -> Option<Progress> {
     };
     Some(Progress {
         status,
-        downloaded_bytes: field(f[1]),
-        total_bytes: field(f[2]).or_else(|| field(f[3])),
-        eta: field(f[4]),
-        speed: field(f[5]),
-        fragment_index: field(f[6]),
-        fragment_count: field(f[7]),
-        playlist_index: field(f[8]),
-        playlist_count: field(f[9]),
+        downloaded_bytes: numeric_field(f[1]),
+        total_bytes: numeric_field(f[2]).or_else(|| numeric_field(f[3])),
+        eta: numeric_field(f[4]),
+        speed: numeric_field(f[5]),
+        fragment_index: numeric_field(f[6]),
+        fragment_count: numeric_field(f[7]),
+        playlist_index: numeric_field(f[8]),
+        playlist_count: numeric_field(f[9]),
         title: (!f[10].is_empty() && f[10] != "NA").then(|| f[10].to_string()),
     })
 }
@@ -113,7 +121,7 @@ pub fn parse_progress_line(line: &str) -> Option<Progress> {
 /// Without this flag, spawning yt-dlp flashes a console window on Windows.
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
-fn ytdlp_command(ytdlp: &std::path::Path, argv: &[String]) -> tokio::process::Command {
+fn ytdlp_command(ytdlp: &Path, argv: &[String]) -> tokio::process::Command {
     let mut command = tokio::process::Command::new(ytdlp);
     command.args(argv);
     #[cfg(windows)]
@@ -145,8 +153,13 @@ pub async fn probe(app: tauri::AppHandle, url: String) -> Result<ProbeInfo, Stri
     })
 }
 
+/// A pending cancel hands over a reply channel; `download` signals it back
+/// once the child is actually dead and its partial files are gone, so
+/// `cancel` never returns while a half-written file could still exist.
+type CancelRequest = oneshot::Sender<oneshot::Sender<()>>;
+
 #[derive(Default)]
-pub struct RunningJob(pub Mutex<Option<u32>>);
+pub struct RunningJob(Mutex<Option<CancelRequest>>);
 
 #[derive(Clone, Serialize)]
 struct Finished {
@@ -172,6 +185,134 @@ fn friendly_error(stderr: &str) -> String {
     }
 }
 
+/// Reads a byte stream line by line without ever failing on invalid UTF-8:
+/// a lossy decode keeps every line reachable instead of ending the stream
+/// early and silently truncating whatever text (like a sign-in error) was
+/// still to come.
+async fn read_lines_lossy<R>(reader: R, mut on_line: impl FnMut(&str))
+where
+    R: AsyncRead + Unpin,
+{
+    let mut reader = BufReader::new(reader);
+    let mut buf = Vec::new();
+    loop {
+        buf.clear();
+        match reader.read_until(b'\n', &mut buf).await {
+            Ok(0) | Err(_) => break,
+            Ok(_) => {
+                while matches!(buf.last(), Some(b'\n') | Some(b'\r')) {
+                    buf.pop();
+                }
+                on_line(&String::from_utf8_lossy(&buf));
+            }
+        }
+    }
+}
+
+/// yt-dlp's own downloader destination, used to target this job's temp
+/// artifacts for cleanup on cancel.
+fn download_destination(line: &str) -> Option<String> {
+    line.strip_prefix("[download] Destination: ")
+        .map(str::to_string)
+}
+
+/// The path this job most recently reported as its output, whether from the
+/// downloader or from a post-processor. A merge or an audio extraction
+/// prints its own `Destination: ` line (or `Merging formats into "..."`)
+/// after the downloader's, so the last one seen is the real result.
+fn reported_destination(line: &str) -> Option<String> {
+    const DESTINATION: &str = "Destination: ";
+    if let Some(idx) = line.rfind(DESTINATION) {
+        return Some(line[idx + DESTINATION.len()..].to_string());
+    }
+    const MERGE: &str = "Merging formats into \"";
+    if let Some(start) = line.find(MERGE) {
+        let rest = &line[start + MERGE.len()..];
+        if let Some(end) = rest.rfind('"') {
+            return Some(rest[..end].to_string());
+        }
+    }
+    None
+}
+
+/// Kills yt-dlp (and any ffmpeg it spawned) through the `Child` this task
+/// still owns: the pid is read at the moment of killing, while the handle is
+/// still open, so the OS cannot have recycled it for an unrelated process.
+async fn kill_tree(child: &mut tokio::process::Child) {
+    if let Some(pid) = child.id() {
+        #[cfg(windows)]
+        {
+            let mut killer = tokio::process::Command::new("taskkill");
+            killer.args(["/PID", &pid.to_string(), "/T", "/F"]);
+            killer.creation_flags(CREATE_NO_WINDOW);
+            let _ = killer.output().await;
+        }
+        #[cfg(not(windows))]
+        {
+            let _ = child.kill().await;
+        }
+    }
+    let _ = child.wait().await;
+}
+
+fn artifact_path(save_folder: &Path, destination: &str) -> PathBuf {
+    let path = PathBuf::from(destination);
+    if path.is_absolute() {
+        path
+    } else {
+        save_folder.join(path)
+    }
+}
+
+fn is_download_artifact(entry_name: &str, base_name: &str) -> bool {
+    entry_name == format!("{base_name}.part")
+        || entry_name == format!("{base_name}.ytdl")
+        || entry_name.starts_with(&format!("{base_name}.part-Frag"))
+}
+
+fn remove_with_retry(path: &Path) {
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+    loop {
+        match std::fs::remove_file(path) {
+            Ok(()) => return,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return,
+            Err(_) if std::time::Instant::now() < deadline => {
+                std::thread::sleep(std::time::Duration::from_millis(100));
+            }
+            Err(_) => return,
+        }
+    }
+}
+
+/// yt-dlp names a fragment temporary `<destination>.part-Frag<N>` and its
+/// resume state `<destination>.ytdl`; only files matching a destination this
+/// job actually reported are touched, never a sweep of the whole folder.
+fn remove_download_artifacts(save_folder: &Path, destinations: &[String]) {
+    for destination in destinations {
+        let target = artifact_path(save_folder, destination);
+        let dir = match target.parent() {
+            Some(dir) => dir,
+            None => continue,
+        };
+        let base_name = match target.file_name().and_then(|n| n.to_str()) {
+            Some(name) => name,
+            None => continue,
+        };
+        let entries = match std::fs::read_dir(dir) {
+            Ok(entries) => entries,
+            Err(_) => continue,
+        };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if let Some(name) = path.file_name().and_then(|n| n.to_str())
+                && is_download_artifact(name, base_name)
+            {
+                remove_with_retry(&path);
+            }
+        }
+    }
+}
+
 #[tauri::command]
 pub async fn download(
     app: tauri::AppHandle,
@@ -180,88 +321,132 @@ pub async fn download(
     save_folder: String,
     url: String,
 ) -> Result<(), String> {
-    let bins = binaries::resolve(&app)?;
-    let argv = args::download_args(&settings, &bins, std::path::Path::new(&save_folder), &url);
-
-    let mut command = ytdlp_command(&bins.ytdlp, &argv);
-    command
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::piped());
-
-    let mut child = command.spawn().map_err(|e| e.to_string())?;
-    *running.0.lock().unwrap() = child.id();
-
-    let stdout = child.stdout.take().ok_or("no stdout")?;
-    let stderr = child.stderr.take().ok_or("no stderr")?;
-
-    let emitter = app.clone();
-    let pump = tokio::spawn(async move {
-        let mut lines = BufReader::new(stdout).lines();
-        let mut last_file = String::new();
-        while let Ok(Some(line)) = lines.next_line().await {
-            if let Some(rest) = line.strip_prefix("[download] Destination: ") {
-                last_file = rest.to_string();
-            }
-            if let Some(progress) = parse_progress_line(&line) {
-                let _ = emitter.emit("download-progress", &progress);
-            }
-        }
-        last_file
-    });
-
-    let mut collected = String::new();
-    let mut err_lines = BufReader::new(stderr).lines();
-    while let Ok(Some(line)) = err_lines.next_line().await {
-        collected.push_str(&line);
-        collected.push('\n');
+    enum Outcome {
+        Exited(std::io::Result<std::process::ExitStatus>),
+        Cancelled(Option<oneshot::Sender<()>>),
     }
 
-    let status = child.wait().await.map_err(|e| e.to_string())?;
-    let file = pump.await.unwrap_or_default();
+    let (mut child, cancel_rx) = {
+        let mut guard = running.0.lock().unwrap();
+        if guard.is_some() {
+            return Err("A download is already running.".to_string());
+        }
+        let bins = binaries::resolve(&app)?;
+        let argv = args::download_args(&settings, &bins, Path::new(&save_folder), &url);
+        let mut command = ytdlp_command(&bins.ytdlp, &argv);
+        command
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped());
+        let child = command.spawn().map_err(|e| e.to_string())?;
+        let (cancel_tx, cancel_rx) = oneshot::channel();
+        *guard = Some(cancel_tx);
+        (child, cancel_rx)
+    };
+
+    let stdout = match child.stdout.take() {
+        Some(stdout) => stdout,
+        None => {
+            *running.0.lock().unwrap() = None;
+            let _ = child.kill().await;
+            return Err("yt-dlp started with no stdout pipe".to_string());
+        }
+    };
+    let stderr = match child.stderr.take() {
+        Some(stderr) => stderr,
+        None => {
+            *running.0.lock().unwrap() = None;
+            let _ = child.kill().await;
+            return Err("yt-dlp started with no stderr pipe".to_string());
+        }
+    };
+
+    let cancelled = Arc::new(AtomicBool::new(false));
+    let progress_cancelled = cancelled.clone();
+    let emitter = app.clone();
+    let stdout_pump = tokio::spawn(async move {
+        let mut destinations = Vec::new();
+        let mut last_file = String::new();
+        read_lines_lossy(stdout, |line| {
+            if let Some(dest) = download_destination(line) {
+                destinations.push(dest);
+            }
+            if let Some(dest) = reported_destination(line) {
+                last_file = dest;
+            }
+            if !progress_cancelled.load(Ordering::Relaxed)
+                && let Some(progress) = parse_progress_line(line)
+            {
+                let _ = emitter.emit("download-progress", &progress);
+            }
+        })
+        .await;
+        (destinations, last_file)
+    });
+
+    let stderr_pump = tokio::spawn(async move {
+        let mut collected = String::new();
+        read_lines_lossy(stderr, |line| {
+            collected.push_str(line);
+            collected.push('\n');
+        })
+        .await;
+        collected
+    });
+
+    let outcome = tokio::select! {
+        status = child.wait() => Outcome::Exited(status),
+        ack = cancel_rx => Outcome::Cancelled(ack.ok()),
+    };
+
     *running.0.lock().unwrap() = None;
 
-    if status.success() {
-        let _ = app.emit("download-finished", Finished { file });
-    } else {
-        let _ = app.emit(
-            "download-failed",
-            Failed {
-                message: friendly_error(&collected),
-                details: collected,
-            },
-        );
+    match outcome {
+        Outcome::Exited(result) => {
+            let status = result.map_err(|e| e.to_string())?;
+            let (_, last_file) = stdout_pump.await.unwrap_or_default();
+            let collected = stderr_pump.await.unwrap_or_default();
+            if status.success() {
+                let _ = app.emit("download-finished", Finished { file: last_file });
+            } else {
+                let _ = app.emit(
+                    "download-failed",
+                    Failed {
+                        message: friendly_error(&collected),
+                        details: collected,
+                    },
+                );
+            }
+        }
+        Outcome::Cancelled(ack) => {
+            cancelled.store(true, Ordering::Relaxed);
+            kill_tree(&mut child).await;
+            let (destinations, _) = stdout_pump.await.unwrap_or_default();
+            let _ = stderr_pump.await;
+            let folder = PathBuf::from(&save_folder);
+            let _ = tokio::task::spawn_blocking(move || {
+                remove_download_artifacts(&folder, &destinations);
+            })
+            .await;
+            if let Some(ack) = ack {
+                let _ = ack.send(());
+            }
+        }
     }
     Ok(())
 }
 
-/// yt-dlp writes each stream to `<name>.<id>.part` and cleans them up only on a
-/// graceful exit, so a killed process leaves them behind.
-fn remove_partials(folder: &std::path::Path) {
-    let Ok(entries) = std::fs::read_dir(folder) else {
-        return;
-    };
-    for entry in entries.flatten() {
-        let path = entry.path();
-        if path.extension().is_some_and(|e| e == "part") {
-            let _ = std::fs::remove_file(path);
-        }
-    }
-}
-
 #[tauri::command]
-pub fn cancel(running: State<'_, RunningJob>, save_folder: String) -> Result<(), String> {
-    let pid = running.0.lock().unwrap().take();
-    if let Some(pid) = pid {
-        #[cfg(windows)]
-        let _ = std::process::Command::new("taskkill")
-            .args(["/PID", &pid.to_string(), "/T", "/F"])
-            .output();
-        #[cfg(not(windows))]
-        let _ = std::process::Command::new("kill")
-            .args(["-TERM", &pid.to_string()])
-            .output();
-        std::thread::sleep(std::time::Duration::from_millis(300));
-        remove_partials(std::path::Path::new(&save_folder));
+pub async fn cancel(running: State<'_, RunningJob>, save_folder: String) -> Result<(), String> {
+    // Cleanup now runs inside `download`, keyed off the destinations it
+    // observed; the folder is kept as a parameter only to preserve the
+    // existing command signature the frontend already calls against.
+    let _save_folder = save_folder;
+    let request = running.0.lock().unwrap().take();
+    if let Some(request) = request {
+        let (ack_tx, ack_rx) = oneshot::channel();
+        if request.send(ack_tx).is_ok() {
+            let _ = ack_rx.await;
+        }
     }
     Ok(())
 }
@@ -269,6 +454,7 @@ pub fn cancel(running: State<'_, RunningJob>, save_folder: String) -> Result<(),
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashSet;
 
     const SINGLE: &str = r#"{
         "title": "A Video",
@@ -338,7 +524,7 @@ mod tests {
             "downloading",
             "1024",
             "4096",
-            "4096",
+            "9999",
             "12",
             "512.5",
             "3",
@@ -401,6 +587,24 @@ mod tests {
     }
 
     #[test]
+    fn a_fractional_estimate_still_parses() {
+        let raw = line(&[
+            "downloading",
+            "1024",
+            "NA",
+            "8192.0",
+            "NA",
+            "NA",
+            "NA",
+            "NA",
+            "NA",
+            "NA",
+            "T",
+        ]);
+        assert_eq!(parse_progress_line(&raw).unwrap().total_bytes, Some(8192));
+    }
+
+    #[test]
     fn a_tab_inside_the_title_does_not_corrupt_earlier_fields() {
         let raw = line(&[
             "finished",
@@ -436,5 +640,131 @@ mod tests {
     fn an_unknown_status_is_ignored() {
         let raw = line(&["sideways", "1", "1", "1", "1", "1", "1", "1", "1", "1", "T"]);
         assert!(parse_progress_line(&raw).is_none());
+    }
+
+    #[test]
+    fn the_progress_template_carries_the_same_sentinel() {
+        assert!(args::PROGRESS_TEMPLATE.contains(PROGRESS_SENTINEL));
+    }
+
+    #[test]
+    fn a_sign_in_requirement_gets_a_specific_message() {
+        let msg = friendly_error("ERROR: [youtube] abc123: Sign in to confirm you're not a bot");
+        assert!(msg.contains("signed in"));
+        assert!(!msg.contains("--"));
+    }
+
+    #[test]
+    fn a_login_required_message_gets_the_same_treatment() {
+        let msg = friendly_error(
+            "ERROR: This video is only available for registered users. Login required.",
+        );
+        assert!(msg.contains("signed in"));
+        assert!(!msg.contains("--"));
+    }
+
+    #[test]
+    fn any_other_failure_gets_the_generic_message() {
+        let msg = friendly_error("ERROR: unable to download video data: HTTP Error 403: Forbidden");
+        assert_eq!(
+            msg,
+            "That download did not finish. Open the details for what yt-dlp reported."
+        );
+        assert!(!msg.contains("--"));
+    }
+
+    #[test]
+    fn download_destination_matches_only_the_download_prefix() {
+        assert_eq!(
+            download_destination("[download] Destination: video.mp4"),
+            Some("video.mp4".to_string())
+        );
+        assert_eq!(
+            download_destination("[Merger] Merging formats into \"video.mkv\""),
+            None
+        );
+    }
+
+    #[test]
+    fn reported_destination_reads_a_postprocessor_destination_line() {
+        assert_eq!(
+            reported_destination("[ffmpeg] Destination: final.mp3"),
+            Some("final.mp3".to_string())
+        );
+    }
+
+    #[test]
+    fn reported_destination_reads_the_merge_target() {
+        assert_eq!(
+            reported_destination("[Merger] Merging formats into \"video.mkv\""),
+            Some("video.mkv".to_string())
+        );
+    }
+
+    #[test]
+    fn reported_destination_ignores_unrelated_lines() {
+        assert_eq!(reported_destination("[download]  42.0% of ~10.00MiB"), None);
+    }
+
+    #[test]
+    fn artifact_path_joins_a_relative_destination_to_the_save_folder() {
+        let folder = PathBuf::from(r"C:\Downloads");
+        assert_eq!(
+            artifact_path(&folder, "video.mp4"),
+            folder.join("video.mp4")
+        );
+    }
+
+    #[test]
+    fn artifact_path_keeps_an_already_absolute_destination() {
+        let folder = PathBuf::from(r"C:\Downloads");
+        assert_eq!(
+            artifact_path(&folder, r"C:\Elsewhere\video.mp4"),
+            PathBuf::from(r"C:\Elsewhere\video.mp4")
+        );
+    }
+
+    fn artifact_temp_dir(label: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "media-dlp-artifacts-{label}-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    fn removes_exactly_the_fragment_and_resume_artifacts_it_named() {
+        let dir = artifact_temp_dir("named");
+        for name in ["a.mp4.part", "b.mp4", "c.mp4.part-Frag0", "d.mp4.ytdl"] {
+            std::fs::write(dir.join(name), b"x").unwrap();
+        }
+        remove_download_artifacts(
+            &dir,
+            &[
+                "a.mp4".to_string(),
+                "c.mp4".to_string(),
+                "d.mp4".to_string(),
+            ],
+        );
+        let remaining: HashSet<String> = std::fs::read_dir(&dir)
+            .unwrap()
+            .flatten()
+            .map(|e| e.file_name().to_string_lossy().into_owned())
+            .collect();
+        assert_eq!(remaining, HashSet::from(["b.mp4".to_string()]));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn leaves_files_belonging_to_an_unrelated_destination_alone() {
+        let dir = artifact_temp_dir("unrelated");
+        std::fs::write(dir.join("someone_elses_download.part"), b"x").unwrap();
+        std::fs::write(dir.join("a.mp4.parted"), b"x").unwrap();
+        remove_download_artifacts(&dir, &["a.mp4".to_string()]);
+        assert!(dir.join("someone_elses_download.part").exists());
+        assert!(dir.join("a.mp4.parted").exists());
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }
