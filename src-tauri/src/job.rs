@@ -319,23 +319,21 @@ fn reported_destination(line: &str) -> Option<String> {
     None
 }
 
-/// Kills yt-dlp (and any ffmpeg it spawned) through the `Child` this task
-/// still owns: the pid is read at the moment of killing, while the handle is
-/// still open, so the OS cannot have recycled it for an unrelated process.
+/// Kills yt-dlp (and, on Windows, any ffmpeg it spawned) through the `Child`
+/// this task still owns: the pid is read at the moment of killing, while the
+/// handle is still open, so the OS cannot have recycled it for an unrelated
+/// process.
 async fn kill_tree(child: &mut tokio::process::Child) {
+    #[cfg(windows)]
     if let Some(pid) = child.id() {
-        #[cfg(windows)]
-        {
-            let mut killer = tokio::process::Command::new("taskkill");
-            killer.args(["/PID", &pid.to_string(), "/T", "/F"]);
-            killer.creation_flags(CREATE_NO_WINDOW);
-            let _ = killer.output().await;
-        }
-        #[cfg(not(windows))]
-        {
-            let _ = child.kill().await;
-        }
+        let mut killer = tokio::process::Command::new("taskkill");
+        killer.args(["/PID", &pid.to_string(), "/T", "/F"]);
+        killer.creation_flags(CREATE_NO_WINDOW);
+        let _ = killer.output().await;
     }
+    #[cfg(not(windows))]
+    let _ = child.kill().await;
+
     let _ = child.wait().await;
 }
 
