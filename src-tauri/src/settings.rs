@@ -195,15 +195,19 @@ mod tests {
     }
 
     #[test]
-    #[allow(clippy::field_reassign_with_default)]
     fn round_trips_through_the_file() {
         let dir = tmp();
-        let mut s = Settings::default();
-        s.audio_only = true;
-        s.audio_format = AudioFormat::Opus;
-        s.video_quality = VideoQuality::P720;
-        s.filename.channel = true;
-        s.filename.separator = Separator::Underscore;
+        let s = Settings {
+            audio_only: true,
+            audio_format: AudioFormat::Opus,
+            video_quality: VideoQuality::P720,
+            filename: FilenameSettings {
+                channel: true,
+                separator: Separator::Underscore,
+                ..FilenameSettings::default()
+            },
+            ..Settings::default()
+        };
         save(&dir, &s).unwrap();
         assert_eq!(load(&dir), s);
     }
