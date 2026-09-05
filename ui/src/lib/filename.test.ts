@@ -52,3 +52,9 @@ test('characters unsafe in a filename are replaced', () => {
   const unsafe: ProbeInfo = { ...info, title: 'Part 1: A/B', uploader: null };
   expect(previewFilename(chips(), unsafe, 'mp4')).toBe('Part 1： A⧸B.mp4');
 });
+
+test('a stem longer than the cap is trimmed, and the extension is untouched', () => {
+  const long: ProbeInfo = { ...info, title: 'A'.repeat(200) };
+  const result = previewFilename(chips(), long, 'mp4');
+  expect(result).toBe(`${'A'.repeat(120)}.mp4`);
+});
