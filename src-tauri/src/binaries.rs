@@ -132,18 +132,39 @@ pub fn browser_support() -> Vec<BrowserSupport> {
 }
 
 #[tauri::command]
-pub fn ytdlp_version(app: tauri::AppHandle) -> Result<String, String> {
-    run_ytdlp(&resolve(&app)?, &["--version"])
+pub async fn ytdlp_version(app: tauri::AppHandle) -> Result<String, String> {
+    tokio::task::spawn_blocking(move || ytdlp_version_blocking(&app))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+fn ytdlp_version_blocking(app: &tauri::AppHandle) -> Result<String, String> {
+    run_ytdlp(&resolve(app)?, &["--version"])
 }
 
 #[tauri::command]
-pub fn check_for_updates(app: tauri::AppHandle, channel: UpdateChannel) -> Result<String, String> {
+pub async fn check_for_updates(
+    app: tauri::AppHandle,
+    channel: UpdateChannel,
+) -> Result<String, String> {
+    tokio::task::spawn_blocking(move || check_for_updates_blocking(&app, channel))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+/// Runs the update synchronously so the launch hook, which calls this from a
+/// plain `std::thread` with no async runtime, can drive it directly; the
+/// `check_for_updates` command wraps this same function in `spawn_blocking`.
+pub fn check_for_updates_blocking(
+    app: &tauri::AppHandle,
+    channel: UpdateChannel,
+) -> Result<String, String> {
     let target = match channel {
         UpdateChannel::Stable => "stable",
         UpdateChannel::Nightly => "nightly",
         UpdateChannel::Master => "master",
     };
-    run_ytdlp(&resolve(&app)?, &["--update-to", target])
+    run_ytdlp(&resolve(app)?, &["--update-to", target])
 }
 
 #[cfg(test)]

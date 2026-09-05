@@ -13,7 +13,7 @@ pub fn run() {
             std::thread::spawn(move || {
                 if let Ok(dir) = tauri::Manager::path(&handle).app_config_dir() {
                     let channel = settings::load(&dir).update_channel;
-                    let _ = binaries::check_for_updates(handle, channel);
+                    let _ = binaries::check_for_updates_blocking(&handle, channel);
                 }
             });
             Ok(())
