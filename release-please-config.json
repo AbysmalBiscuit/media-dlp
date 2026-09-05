@@ -5,6 +5,7 @@
     ".": {
       "release-type": "simple",
       "package-name": "media-dlp",
+      "initial-version": "0.1.0",
       "bump-minor-pre-major": true,
       "extra-files": [
         { "type": "toml", "path": "src-tauri/Cargo.toml", "jsonpath": "$.package.version" },
