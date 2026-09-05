@@ -1,0 +1,21 @@
+{
+  "name": "media-dlp-ui",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "2.11.1",
+    "@tauri-apps/plugin-dialog": "2.7.3",
+    "@tauri-apps/plugin-opener": "2.5.5",
+    "@tailwindcss/vite": "4.3.3",
+    "astro": "7.3.1",
+    "tailwindcss": "4.3.3"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "2.11.4"
+  }
+}
