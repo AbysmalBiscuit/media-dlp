@@ -11,7 +11,6 @@ export interface FilenameSettings {
   channel: boolean;
   'upload-date': boolean;
   'playlist-number': boolean;
-  'video-id': boolean;
   separator: Separator;
 }
 

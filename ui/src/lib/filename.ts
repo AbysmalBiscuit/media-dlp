@@ -32,18 +32,32 @@ function formatUploadDate(raw: string): string {
   return `${raw.slice(0, 4)}-${raw.slice(4, 6)}-${raw.slice(6, 8)}`;
 }
 
+// Before a link is pasted every chip would otherwise contribute nothing, and
+// ticking one would leave the preview unchanged. Standing in a value of the
+// right shape for each field is what makes the chips answer.
+const PLACEHOLDER: ProbeInfo = {
+  title: 'Video title',
+  uploader: 'Channel name',
+  uploadDate: '20260214',
+  thumbnail: null,
+  playlistCount: 1,
+  webpageUrl: '',
+  id: 'aBcD1234xyz',
+};
+
 export function previewFilename(
   f: FilenameSettings,
   info: ProbeInfo | null,
   extension: string,
 ): string {
+  const source = info ?? PLACEHOLDER;
   const separator = SEPARATORS[f.separator];
   const parts: string[] = [];
-  if (f['playlist-number'] && info?.playlistCount) parts.push('1');
-  if (f['upload-date'] && info?.uploadDate) parts.push(formatUploadDate(info.uploadDate));
-  if (f.channel && info?.uploader) parts.push(sanitize(info.uploader));
-  parts.push(sanitize(info?.title ?? 'Video title'));
-  if (f['video-id'] && info?.id) parts.push(info.id);
+  if (f['playlist-number'] && source.playlistCount) parts.push('1');
+  if (f['upload-date'] && source.uploadDate) parts.push(formatUploadDate(source.uploadDate));
+  if (f.channel && source.uploader) parts.push(sanitize(source.uploader));
+  parts.push(sanitize(source.title));
+  if (source.id) parts.push(source.id);
   const stem = parts.join(separator).slice(0, TRIM_FILENAME_LENGTH);
   return `${stem}.${extension}`;
 }
