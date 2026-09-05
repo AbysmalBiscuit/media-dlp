@@ -4,8 +4,17 @@
   --surface: #ffffff;
   --surface-muted: #f5f5f5;
   --ink: #171717;
-  --ink-muted: #737373;
+  --ink-muted: #5c5c5c;
   --line: #d4d4d4;
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+  --accent-ink: #ffffff;
+  --accent-soft: #dbeafe;
+  --accent-soft-hover: #bfdbfe;
+  --accent-soft-ink: #1e3a8a;
+  --focus: #2563eb;
+  --disabled-surface: #e5e5e5;
+  --disabled-ink: #737373;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -15,6 +24,15 @@
     --ink: #fafafa;
     --ink-muted: #a3a3a3;
     --line: #404040;
+    --accent: #2563eb;
+    --accent-hover: #3b82f6;
+    --accent-ink: #ffffff;
+    --accent-soft: #1e3a8a;
+    --accent-soft-hover: #1d4ed8;
+    --accent-soft-ink: #dbeafe;
+    --focus: #60a5fa;
+    --disabled-surface: #333333;
+    --disabled-ink: #8a8a8a;
   }
 }
 
@@ -24,9 +42,305 @@
   --ink: #fafafa;
   --ink-muted: #a3a3a3;
   --line: #404040;
+  --accent: #2563eb;
+  --accent-hover: #3b82f6;
+  --accent-ink: #ffffff;
+  --accent-soft: #1e3a8a;
+  --accent-soft-hover: #1d4ed8;
+  --accent-soft-ink: #dbeafe;
+  --focus: #60a5fa;
+  --disabled-surface: #333333;
+  --disabled-ink: #8a8a8a;
 }
 
-body {
-  background: var(--surface);
-  color: var(--ink);
+@layer base {
+  body {
+    background: var(--surface);
+    color: var(--ink);
+    font-size: 1rem;
+    line-height: 1.5;
+  }
+
+  input[type="checkbox"],
+  input[type="radio"] {
+    width: 1.125rem;
+    height: 1.125rem;
+    flex: none;
+    accent-color: var(--accent);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  .field-label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 600;
+  }
+
+  .text-input {
+    width: 100%;
+    min-height: 2.75rem;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--line);
+    border-radius: 0.5rem;
+    background: var(--surface);
+    color: var(--ink);
+    font-size: 1rem;
+  }
+
+  .text-input::placeholder {
+    color: var(--ink-muted);
+  }
+
+  .text-input[readonly] {
+    background: var(--surface-muted);
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 2.75rem;
+    padding: 0.5rem 1.125rem;
+    border: 1px solid transparent;
+    border-radius: 0.5rem;
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+  }
+
+  .btn:disabled {
+    background: var(--disabled-surface);
+    border-color: transparent;
+    color: var(--disabled-ink);
+    cursor: default;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: var(--accent-ink);
+    min-height: 3.25rem;
+    font-size: 1.0625rem;
+    font-weight: 600;
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    background: var(--accent-hover);
+  }
+
+  .btn-secondary {
+    background: var(--accent-soft);
+    color: var(--accent-soft-ink);
+    border-color: var(--accent);
+  }
+
+  .btn-secondary:hover:not(:disabled) {
+    background: var(--accent-soft-hover);
+  }
+
+  .btn-quiet {
+    min-height: 2.5rem;
+    padding: 0.375rem 0.875rem;
+    border-color: var(--line);
+    background: var(--surface);
+    color: var(--ink);
+    font-size: 0.875rem;
+  }
+
+  .btn-quiet:hover:not(:disabled) {
+    background: var(--surface-muted);
+  }
+
+  .card {
+    margin: 0;
+    padding: 1rem;
+    border: 1px solid var(--line);
+    border-radius: 0.75rem;
+    background: var(--surface);
+  }
+
+  /* Sits in the gap the browser cuts in the fieldset's top border. */
+  .card-title {
+    margin-inline-start: -0.25rem;
+    padding-inline: 0.25rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+  }
+
+  .option {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 2.5rem;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid transparent;
+    border-radius: 0.5rem;
+    background: var(--surface-muted);
+    font-size: 0.9375rem;
+    cursor: pointer;
+  }
+
+  .option:hover {
+    border-color: var(--line);
+  }
+
+  .option:has(input:checked) {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+    color: var(--accent-soft-ink);
+  }
+
+  /* Dimming here would compound with .option-stack.is-off, so the disabled
+     look comes from colour alone. */
+  .option:has(input:disabled) {
+    border-color: transparent;
+    background: var(--surface-muted);
+    color: var(--ink-muted);
+    cursor: default;
+  }
+
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-height: 3rem;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--line);
+    border-radius: 0.75rem;
+    background: var(--surface);
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+  }
+
+  .toggle-row:hover {
+    background: var(--surface-muted);
+  }
+
+  .toggle-row:has(input:checked) {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+    color: var(--accent-soft-ink);
+  }
+
+  .option-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
+    gap: 0.5rem;
+  }
+
+  .option-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    transition: opacity 150ms ease;
+  }
+
+  .option-stack.is-off {
+    opacity: 0.5;
+  }
+
+  .note {
+    color: var(--ink-muted);
+    font-size: 0.875rem;
+  }
+
+  .note:empty {
+    display: none;
+  }
+
+  .disclosure {
+    border: 1px solid var(--line);
+    border-radius: 0.75rem;
+    background: var(--surface);
+    overflow: hidden;
+  }
+
+  .disclosure-summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.875rem 1rem;
+    font-size: 1rem;
+    font-weight: 600;
+    list-style: none;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .disclosure-summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .disclosure-summary:hover {
+    background: var(--surface-muted);
+  }
+
+  /* The rounded .disclosure clips an outward outline. */
+  .disclosure-summary:focus-visible {
+    outline-offset: -3px;
+  }
+
+  .disclosure-marker {
+    flex: none;
+    color: var(--ink-muted);
+    transition: transform 150ms ease;
+  }
+
+  .disclosure[open] .disclosure-marker {
+    transform: rotate(90deg);
+  }
+
+  .disclosure-body {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    padding: 1rem;
+    border-top: 1px solid var(--line);
+  }
+
+  .progress-track {
+    height: 0.625rem;
+    overflow: hidden;
+    border-radius: 999px;
+    background: var(--surface-muted);
+  }
+
+  .progress-fill {
+    height: 100%;
+    width: 0;
+    background: var(--accent);
+    transition: width 150ms ease;
+  }
+
+  .log {
+    max-height: 10rem;
+    overflow: auto;
+    padding: 0.5rem;
+    border: 1px solid var(--line);
+    border-radius: 0.5rem;
+    background: var(--surface-muted);
+    color: var(--ink);
+    font-size: 0.75rem;
+    white-space: pre-wrap;
+  }
+
+  .dialog {
+    max-width: min(30rem, calc(100vw - 2rem));
+    border: 1px solid var(--line);
+    border-radius: 0.75rem;
+    background: var(--surface);
+    color: var(--ink);
+  }
+
+  .dialog::backdrop {
+    background: rgb(0 0 0 / 0.5);
+  }
 }
