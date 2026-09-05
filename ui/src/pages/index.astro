@@ -48,10 +48,48 @@ import '../styles/global.css';
 
       document.addEventListener('change', async (event) => {
         const input = event.target as HTMLInputElement;
-        if (!input.dataset.setting) return;
-        const key = input.dataset.setting as keyof Settings;
-        (settings as unknown as Record<string, unknown>)[key] =
-          input.type === 'checkbox' ? input.checked : input.value;
+        switch (input.dataset.setting) {
+          case 'audio-only':
+            settings['audio-only'] = input.checked;
+            break;
+          case 'video-quality': {
+            const { value } = input;
+            if (value === 'best' || value === '1080p' || value === '720p' || value === '480p') {
+              settings['video-quality'] = value;
+            }
+            break;
+          }
+          case 'video-format': {
+            const { value } = input;
+            if (value === 'mp4' || value === 'mkv' || value === 'webm') {
+              settings['video-format'] = value;
+            }
+            break;
+          }
+          case 'audio-format': {
+            const { value } = input;
+            if (value === 'mp3' || value === 'm4a' || value === 'opus' || value === 'wav') {
+              settings['audio-format'] = value;
+            }
+            break;
+          }
+          case 'audio-quality': {
+            const { value } = input;
+            if (value === 'best' || value === 'good' || value === 'smaller') {
+              settings['audio-quality'] = value;
+            }
+            break;
+          }
+          case 'cookie-browser': {
+            const { value } = input;
+            if (value === 'chrome' || value === 'firefox') {
+              settings['cookie-browser'] = value;
+            }
+            break;
+          }
+          default:
+            return;
+        }
         document.getElementById('video-groups')!.hidden = settings['audio-only'];
         await saveSettings(settings);
       });

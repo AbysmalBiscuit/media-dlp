@@ -20,8 +20,8 @@
     <span class="text-sm font-medium">Audio only</span>
   </label>
 
-  <fieldset id="video-groups" class="space-y-4">
-    <div>
+  <div id="video-groups" class="space-y-4">
+    <fieldset class="m-0 border-0 p-0">
       <legend class="text-sm font-medium">Quality</legend>
       <div class="mt-1 flex gap-4" data-group="video-quality">
         <label class="flex items-center gap-1"><input type="radio" name="video-quality" data-setting="video-quality" value="best" /> Best available</label>
@@ -29,18 +29,18 @@
         <label class="flex items-center gap-1"><input type="radio" name="video-quality" data-setting="video-quality" value="720p" /> 720p</label>
         <label class="flex items-center gap-1"><input type="radio" name="video-quality" data-setting="video-quality" value="480p" /> 480p</label>
       </div>
-    </div>
-    <div>
+    </fieldset>
+    <fieldset class="m-0 border-0 p-0">
       <legend class="text-sm font-medium">Video format</legend>
       <div class="mt-1 flex gap-4" data-group="video-format">
         <label class="flex items-center gap-1"><input type="radio" name="video-format" data-setting="video-format" value="mp4" /> mp4</label>
         <label class="flex items-center gap-1"><input type="radio" name="video-format" data-setting="video-format" value="mkv" /> mkv</label>
         <label class="flex items-center gap-1"><input type="radio" name="video-format" data-setting="video-format" value="webm" /> webm</label>
       </div>
-    </div>
-  </fieldset>
+    </fieldset>
+  </div>
 
-  <div>
+  <fieldset class="m-0 border-0 p-0">
     <legend class="text-sm font-medium">Audio format</legend>
     <div class="mt-1 flex gap-4">
       <label class="flex items-center gap-1"><input type="radio" name="audio-format" data-setting="audio-format" value="mp3" /> mp3</label>
@@ -48,9 +48,9 @@
       <label class="flex items-center gap-1"><input type="radio" name="audio-format" data-setting="audio-format" value="opus" /> opus</label>
       <label class="flex items-center gap-1"><input type="radio" name="audio-format" data-setting="audio-format" value="wav" /> wav</label>
     </div>
-  </div>
+  </fieldset>
 
-  <div>
+  <fieldset class="m-0 border-0 p-0">
     <legend class="text-sm font-medium">Audio quality</legend>
     <div class="mt-1 flex gap-4">
       <label class="flex items-center gap-1"><input type="radio" name="audio-quality" data-setting="audio-quality" value="best" /> Best</label>
@@ -60,11 +60,11 @@
     <p id="quality-note" class="mt-1 text-xs text-neutral-500">
       m4a and opus copy the audio unchanged, so this setting does nothing for them.
     </p>
-  </div>
+  </fieldset>
 
-  <div>
+  <fieldset class="m-0 border-0 p-0">
     <legend class="text-sm font-medium">Cookies</legend>
     <div id="cookie-group" class="mt-1 flex gap-4"></div>
     <p id="cookie-note" class="mt-1 text-xs text-neutral-500"></p>
-  </div>
+  </fieldset>
 </section>
