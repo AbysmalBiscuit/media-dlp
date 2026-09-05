@@ -18,6 +18,7 @@ import '../styles/global.css';
         <h1 class="text-xl font-semibold">media-dlp</h1>
         <SettingsPanel />
       </header>
+      <p id="startup-warning" class="warning"></p>
       <Controls />
       <div class="card">
         <Filename />
@@ -44,6 +45,7 @@ import '../styles/global.css';
       import { BROWSER_LABELS, cookieWarning } from '../lib/cookies';
       import { previewFilename } from '../lib/filename';
       import type {
+        BrowserSupport,
         DownloadFailed,
         DownloadFinished,
         FilenameSettings,
@@ -53,7 +55,19 @@ import '../styles/global.css';
         Settings,
       } from '../lib/types';
 
-      const settings: Settings = await getSettings();
+      // This is a module, so a rejected top-level await stops every statement
+      // below it. Each one that can reject reports here and, where it has a
+      // usable answer to fall back on, carries on with it.
+      const startupWarning = document.getElementById('startup-warning')!;
+      const reportStartupFailure = () => {
+        startupWarning.textContent =
+          'Something did not start correctly. Close this window and open it again.';
+      };
+
+      const settings: Settings = await getSettings().catch((error) => {
+        reportStartupFailure();
+        throw error;
+      });
 
       const applyTheme = () => {
         const root = document.documentElement;
@@ -214,7 +228,10 @@ import '../styles/global.css';
         return label;
       };
 
-      const support = await browserSupport();
+      const support = await browserSupport().catch((): BrowserSupport[] => {
+        reportStartupFailure();
+        return [];
+      });
       group.append(cookieOption('none', 'None', false));
       for (const { browser, supported, reason } of support) {
         group.append(cookieOption(browser, BROWSER_LABELS[browser], !supported));
@@ -230,9 +247,14 @@ import '../styles/global.css';
       document.getElementById('open-settings')!.addEventListener('click', () => dialog.showModal());
       document.getElementById('close-settings')!.addEventListener('click', () => dialog.close());
 
-      const path = await configPath();
+      const path = await configPath().catch(() => {
+        reportStartupFailure();
+        return '';
+      });
       document.getElementById('config-path')!.textContent = path;
-      document.getElementById('open-config')!.addEventListener('click', () => openPath(path));
+      document.getElementById('open-config')!.addEventListener('click', () => {
+        if (path) openPath(path);
+      });
 
       const version = document.getElementById('version')!;
       const showVersion = async () => {
@@ -387,27 +409,31 @@ import '../styles/global.css';
         showResult('Cancelled.');
       });
 
-      await listen<Progress>('download-progress', ({ payload }) => {
-        const done = payload.downloadedBytes ?? 0;
-        const total = payload.totalBytes ?? 0;
-        const percent = total ? Math.min(100, Math.round((done / total) * 100)) : 0;
-        bar.style.width = `${percent}%`;
-        const position =
-          payload.playlistCount && payload.playlistIndex
-            ? `video ${payload.playlistIndex} of ${payload.playlistCount}: `
-            : '';
-        text.textContent = `${position}${payload.title ?? ''}`;
-      });
+      try {
+        await listen<Progress>('download-progress', ({ payload }) => {
+          const done = payload.downloadedBytes ?? 0;
+          const total = payload.totalBytes ?? 0;
+          const percent = total ? Math.min(100, Math.round((done / total) * 100)) : 0;
+          bar.style.width = `${percent}%`;
+          const position =
+            payload.playlistCount && payload.playlistIndex
+              ? `video ${payload.playlistIndex} of ${payload.playlistCount}: `
+              : '';
+          text.textContent = `${position}${payload.title ?? ''}`;
+        });
 
-      await listen<DownloadFinished>('download-finished', ({ payload }) => {
-        lastFile = payload.file;
-        showResult('Done.', false, Boolean(lastFile));
-      });
+        await listen<DownloadFinished>('download-finished', ({ payload }) => {
+          lastFile = payload.file;
+          showResult('Done.', false, Boolean(lastFile));
+        });
 
-      await listen<DownloadFailed>('download-failed', ({ payload }) => {
-        log.textContent = payload.details;
-        showResult(payload.message, true);
-      });
+        await listen<DownloadFailed>('download-failed', ({ payload }) => {
+          log.textContent = payload.details;
+          showResult(payload.message, true);
+        });
+      } catch {
+        reportStartupFailure();
+      }
 
       openButton.addEventListener('click', () => {
         if (lastFile) revealItemInDir(lastFile);
