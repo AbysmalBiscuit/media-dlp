@@ -49,11 +49,11 @@ run = ["bun", "run", "--cwd", "ui", "build"]
 
 [tasks.dev]
 description = "Run the Tauri app with the Astro dev server"
-run = ["bunx", "--bun", "@tauri-apps/cli", "dev", "--config", "src-tauri/tauri.conf.json"]
+run = ["ui/node_modules/.bin/tauri.exe", "dev", "--config", "src-tauri/tauri.conf.json"]
 
 [tasks.build]
 description = "Build the installer"
-run = ["bunx", "--bun", "@tauri-apps/cli", "build", "--config", "src-tauri/tauri.conf.json"]
+run = ["ui/node_modules/.bin/tauri.exe", "build", "--config", "src-tauri/tauri.conf.json"]
 
 [tasks.ui-test]
 description = "Run the frontend unit tests"
