@@ -318,17 +318,26 @@ import '../styles/global.css';
             refreshPreview();
             return;
           }
+          // A probe cannot be cancelled once it has started, so a slow answer
+          // about a link the user has replaced can land after a fast answer
+          // about the current one. Either way round, an answer that no longer
+          // matches the box describes something the user is no longer looking
+          // at, and belongs nowhere on screen.
+          const stale = () => urlInput.value.trim() !== url;
           try {
-            probed = await probe(url);
-            (document.getElementById('probe-title') as HTMLElement).textContent = probed.title;
-            (document.getElementById('probe-sub') as HTMLElement).textContent = probed.playlistCount
-              ? `${probed.uploader ?? 'Unknown channel'} - playlist of ${probed.playlistCount}`
-              : (probed.uploader ?? '');
+            const info = await probe(url);
+            if (stale()) return;
+            probed = info;
+            (document.getElementById('probe-title') as HTMLElement).textContent = info.title;
+            (document.getElementById('probe-sub') as HTMLElement).textContent = info.playlistCount
+              ? `${info.uploader ?? 'Unknown channel'} - playlist of ${info.playlistCount}`
+              : (info.uploader ?? '');
             const thumb = document.getElementById('probe-thumb') as HTMLImageElement;
-            thumb.src = probed.thumbnail ?? '';
-            thumb.hidden = !probed.thumbnail;
+            thumb.src = info.thumbnail ?? '';
+            thumb.hidden = !info.thumbnail;
             card.hidden = false;
           } catch {
+            if (stale()) return;
             probed = null;
             card.hidden = true;
             showProbeError('That link could not be read.');
