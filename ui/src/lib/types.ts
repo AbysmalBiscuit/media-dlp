@@ -11,6 +11,7 @@ export interface FilenameSettings {
   channel: boolean;
   'upload-date': boolean;
   'playlist-number': boolean;
+  'video-id': boolean;
   separator: Separator;
 }
 
@@ -40,6 +41,7 @@ export interface ProbeInfo {
   thumbnail: string | null;
   playlistCount: number | null;
   webpageUrl: string;
+  id: string;
 }
 
 export interface Progress {
