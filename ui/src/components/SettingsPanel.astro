@@ -1,34 +1,33 @@
-<button id="open-settings" type="button"
-  class="text-sm text-[var(--ink-muted)] underline">Settings</button>
+<button id="open-settings" type="button" class="btn btn-quiet">Settings</button>
 
-<dialog id="settings" class="rounded border border-[var(--line)] bg-[var(--surface)] p-6 text-[var(--ink)]">
+<dialog id="settings" class="dialog p-6">
   <h2 class="text-lg font-semibold">Settings</h2>
 
-  <fieldset class="m-0 mt-4 border-0 p-0">
-    <legend class="text-sm font-medium">Theme</legend>
-    <div class="mt-1 flex gap-4">
-      <label class="flex items-center gap-1"><input type="radio" name="theme" data-setting="theme" value="system" /> System</label>
-      <label class="flex items-center gap-1"><input type="radio" name="theme" data-setting="theme" value="light" /> Light</label>
-      <label class="flex items-center gap-1"><input type="radio" name="theme" data-setting="theme" value="dark" /> Dark</label>
+  <fieldset class="card mt-4">
+    <legend class="card-title">Theme</legend>
+    <div class="option-grid mt-2">
+      <label class="option"><input type="radio" name="theme" data-setting="theme" value="system" /> <span>System</span></label>
+      <label class="option"><input type="radio" name="theme" data-setting="theme" value="light" /> <span>Light</span></label>
+      <label class="option"><input type="radio" name="theme" data-setting="theme" value="dark" /> <span>Dark</span></label>
     </div>
   </fieldset>
 
-  <fieldset class="m-0 mt-4 border-0 p-0">
-    <legend class="text-sm font-medium">yt-dlp updates</legend>
-    <div class="mt-1 flex gap-4">
-      <label class="flex items-center gap-1"><input type="radio" name="update-channel" data-setting="update-channel" value="stable" /> Stable</label>
-      <label class="flex items-center gap-1"><input type="radio" name="update-channel" data-setting="update-channel" value="nightly" /> Nightly</label>
-      <label class="flex items-center gap-1"><input type="radio" name="update-channel" data-setting="update-channel" value="master" /> Master</label>
+  <fieldset class="card mt-4">
+    <legend class="card-title">yt-dlp updates</legend>
+    <div class="option-grid mt-2">
+      <label class="option"><input type="radio" name="update-channel" data-setting="update-channel" value="stable" /> <span>Stable</span></label>
+      <label class="option"><input type="radio" name="update-channel" data-setting="update-channel" value="nightly" /> <span>Nightly</span></label>
+      <label class="option"><input type="radio" name="update-channel" data-setting="update-channel" value="master" /> <span>Master</span></label>
     </div>
-    <p id="version" class="mt-1 text-xs text-[var(--ink-muted)]"></p>
-    <button id="update-now" type="button" class="mt-1 rounded border border-[var(--line)] px-3 py-1 text-sm">Check for updates</button>
+    <p id="version" class="note mt-3"></p>
+    <button id="update-now" type="button" class="btn btn-quiet mt-3">Check for updates</button>
   </fieldset>
 
   <div class="mt-4">
-    <span class="text-sm font-medium">Settings file</span>
-    <p id="config-path" class="mt-1 truncate font-mono text-xs text-[var(--ink-muted)]"></p>
-    <button id="open-config" type="button" class="mt-1 rounded border border-[var(--line)] px-3 py-1 text-sm">Open</button>
+    <span class="field-label">Settings file</span>
+    <p id="config-path" class="note mt-2 truncate font-mono"></p>
+    <button id="open-config" type="button" class="btn btn-quiet mt-3">Open</button>
   </div>
 
-  <button id="close-settings" type="button" class="mt-6 rounded bg-[var(--ink)] px-4 py-2 text-[var(--surface)]">Close</button>
+  <button id="close-settings" type="button" class="btn btn-secondary mt-6 w-full">Close</button>
 </dialog>
