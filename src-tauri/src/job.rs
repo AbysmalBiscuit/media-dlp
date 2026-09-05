@@ -328,6 +328,30 @@ async fn kill_tree(child: &mut tokio::process::Child) {
     let _ = child.wait().await;
 }
 
+/// Generous enough for a working `taskkill /T /F` to finish, short enough
+/// that an unresponsive process cannot hang the caller indefinitely.
+const KILL_AND_DRAIN_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
+
+/// Kills the child and waits for both output pumps to finish, bounded so a
+/// `taskkill` that never terminates the process, or a lingering handle on
+/// its pipes, cannot hang the caller forever. Returns `None` once the bound
+/// expires, in which case the child or its pipes may still be alive.
+async fn kill_and_drain(
+    child: &mut tokio::process::Child,
+    stdout_pump: tokio::task::JoinHandle<(Vec<String>, String)>,
+    stderr_pump: tokio::task::JoinHandle<String>,
+) -> Option<Vec<String>> {
+    let drain = async {
+        kill_tree(child).await;
+        let (destinations, _) = stdout_pump.await.unwrap_or_default();
+        let _ = stderr_pump.await;
+        destinations
+    };
+    tokio::time::timeout(KILL_AND_DRAIN_TIMEOUT, drain)
+        .await
+        .ok()
+}
+
 fn artifact_path(save_folder: &Path, destination: &str) -> PathBuf {
     let path = PathBuf::from(destination);
     if path.is_absolute() {
@@ -489,26 +513,15 @@ pub async fn download(
         }
         Outcome::Exited(Err(e)) => {
             cancelled.store(true, Ordering::Relaxed);
-            kill_tree(&mut child).await;
-            let _ = stdout_pump.await;
-            let _ = stderr_pump.await;
+            let _ = kill_and_drain(&mut child, stdout_pump, stderr_pump).await;
             Err(e.to_string())
         }
         Outcome::Cancelled(ack) => {
             cancelled.store(true, Ordering::Relaxed);
-            let kill_and_join = async {
-                kill_tree(&mut child).await;
-                let (destinations, _) = stdout_pump.await.unwrap_or_default();
-                let _ = stderr_pump.await;
-                destinations
-            };
-            // A still-running child or a lingering handle on its pipes can
-            // block this indefinitely; past the timeout, an unresponsive
-            // process may still hold the target files, so cleanup is
-            // skipped rather than raced against whatever is holding them.
-            if let Ok(destinations) =
-                tokio::time::timeout(std::time::Duration::from_secs(5), kill_and_join).await
-            {
+            // A timed-out drain means the child or its pipes may still be
+            // alive, so cleanup is skipped rather than raced against
+            // whatever still holds those files.
+            if let Some(destinations) = kill_and_drain(&mut child, stdout_pump, stderr_pump).await {
                 let folder = PathBuf::from(&save_folder);
                 let _ = tokio::task::spawn_blocking(move || {
                     remove_download_artifacts(&folder, &destinations);
