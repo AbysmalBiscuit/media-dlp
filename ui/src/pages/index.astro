@@ -294,7 +294,8 @@ import '../styles/global.css';
         try {
           await download(settings, folder, urlInput.value.trim());
         } catch (error) {
-          showResult(typeof error === 'string' ? error : 'That download did not start.');
+          log.textContent = typeof error === 'string' ? error : String(error);
+          showResult('That download did not start.', true);
         }
       });
 
