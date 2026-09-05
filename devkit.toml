@@ -1,0 +1,44 @@
+#:schema https://github.com/AbysmalBiscuit/devkit/releases/latest/download/devkit-config.json
+
+[defaults]
+worktree_root = "~/Git/lev/media-dlp-worktrees"
+branch_prefix = "lev/"
+baseline_ref = "origin/main"
+baseline_dir = "~/Git/lev/media-dlp-worktrees/_baselines"
+
+# The origin remote is HTTPS and already names the repository, but spelling
+# both keys out keeps issue and PR routing independent of remote rewrites.
+[github]
+issues_repo = "AbysmalBiscuit/media-dlp"
+pr_repo = "AbysmalBiscuit/media-dlp"
+
+# A globally exported LINEAR_API_KEY would otherwise make detection resolve
+# Linear for this project, which has nothing in Linear.
+[tracker]
+kind = "github"
+
+[apps]
+
+[tasks.fmt]
+description = "Format the Rust sources"
+run = ["cargo", "fmt", "--all"]
+
+[tasks.lint]
+description = "Clippy across all targets, warnings are errors"
+run = ["cargo", "clippy", "--all-targets", "--", "-D", "warnings"]
+
+[tasks.test]
+description = "Run the Rust test suite"
+run = ["cargo", "nextest", "run"]
+
+[tasks.fmt-check]
+description = "Fail if the Rust sources are unformatted"
+run = ["cargo", "fmt", "--all", "--check"]
+
+[tasks.check]
+description = "Format check, lint and test in one pass"
+steps = [
+  { task = "fmt-check" },
+  { task = "lint" },
+  { task = "test" },
+]
