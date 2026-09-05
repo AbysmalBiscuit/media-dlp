@@ -230,6 +230,7 @@ import '../styles/global.css';
       let probeTimer: ReturnType<typeof setTimeout> | undefined;
 
       urlInput.addEventListener('input', () => {
+        result.hidden = true;
         clearTimeout(probeTimer);
         probeTimer = setTimeout(async () => {
           const url = urlInput.value.trim();
@@ -252,6 +253,7 @@ import '../styles/global.css';
           } catch {
             probed = null;
             card.hidden = true;
+            showResult('That link could not be read.');
           }
           refreshPreview();
         }, 400);
