@@ -21,7 +21,7 @@ No test reaches the network. After changing anything in the argument builder or 
 
 ## The bundled binaries
 
-`src-tauri/binaries/` holds yt-dlp and ffmpeg. They are not committed. Fetch yt-dlp from its GitHub releases and ffmpeg from a static build, then place both there before building. yt-dlp is copied into the user's data directory at first run so it can update itself; ffmpeg is invoked from the install directory.
+`src-tauri/binaries/` holds yt-dlp, ffmpeg and ffprobe. They are not committed. Fetch yt-dlp from its GitHub releases and ffmpeg and ffprobe from the same static build, then place all three there before building. yt-dlp is copied into the user's data directory at first run so it can update itself; ffmpeg and ffprobe are invoked from the install directory. yt-dlp resolves ffprobe from whatever directory holds ffmpeg, so the two must stay side by side.
 
 ## Installer
 
