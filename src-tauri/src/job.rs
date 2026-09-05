@@ -857,10 +857,10 @@ mod tests {
 
     #[test]
     fn artifact_path_keeps_an_already_absolute_destination() {
-        let folder = PathBuf::from(r"C:\Downloads");
+        let elsewhere = std::env::temp_dir().join("elsewhere").join("video.mp4");
         assert_eq!(
-            artifact_path(&folder, r"C:\Elsewhere\video.mp4"),
-            PathBuf::from(r"C:\Elsewhere\video.mp4")
+            artifact_path(&PathBuf::from("downloads"), &elsewhere.to_string_lossy()),
+            elsewhere
         );
     }
 
