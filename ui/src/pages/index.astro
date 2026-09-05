@@ -71,7 +71,7 @@ import '../styles/global.css';
         for (const input of document.querySelectorAll<HTMLInputElement>('[data-setting]')) {
           const key = input.dataset.setting as keyof Settings;
           if (input.type === 'checkbox') input.checked = Boolean(settings[key]);
-          else input.checked = settings[key] === input.value;
+          else input.checked = (settings[key] ?? 'none') === input.value;
         }
         (document.getElementById('folder') as HTMLInputElement).value =
           settings['save-folder'] ?? '';
@@ -114,9 +114,8 @@ import '../styles/global.css';
           }
           case 'cookie-browser': {
             const { value } = input;
-            if (value === 'chrome' || value === 'firefox') {
-              settings['cookie-browser'] = value;
-            }
+            if (value === 'none') settings['cookie-browser'] = null;
+            else if (value === 'chrome' || value === 'firefox') settings['cookie-browser'] = value;
             break;
           }
           case 'theme': {
@@ -185,6 +184,7 @@ import '../styles/global.css';
         return label;
       };
 
+      group.append(cookieOption('none', 'None', false));
       for (const support of await browserSupport()) {
         const label = cookieOption(
           support.browser,
