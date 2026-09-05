@@ -13,13 +13,15 @@ import '../styles/global.css';
     <title>media-dlp</title>
   </head>
   <body class="bg-[var(--surface)] text-[var(--ink)]">
-    <main class="mx-auto max-w-xl space-y-4 p-6">
-      <div class="flex items-center justify-between">
+    <main class="mx-auto flex max-w-xl flex-col gap-6 px-5 py-6">
+      <header class="flex items-center justify-between gap-4">
         <h1 class="text-xl font-semibold">media-dlp</h1>
         <SettingsPanel />
-      </div>
+      </header>
       <Controls />
-      <Filename />
+      <div class="card">
+        <Filename />
+      </div>
       <Status />
     </main>
 
@@ -59,6 +61,19 @@ import '../styles/global.css';
 
       let probed: ProbeInfo | null = null;
 
+      // A disabled <fieldset> disables its inputs natively, so the options keep
+      // their place in the layout instead of the page reflowing on every toggle.
+      const setGroupEnabled = (id: string, enabled: boolean) => {
+        const container = document.getElementById(id)!;
+        container.classList.toggle('is-off', !enabled);
+        for (const group of container.querySelectorAll('fieldset')) group.disabled = !enabled;
+      };
+
+      const applyAudioOnly = () => {
+        setGroupEnabled('video-groups', !settings['audio-only']);
+        setGroupEnabled('audio-groups', settings['audio-only']);
+      };
+
       const extension = () =>
         settings['audio-only'] ? settings['audio-format'] : settings['video-format'];
 
@@ -75,7 +90,7 @@ import '../styles/global.css';
         }
         (document.getElementById('folder') as HTMLInputElement).value =
           settings['save-folder'] ?? '';
-        document.getElementById('video-groups')!.hidden = settings['audio-only'];
+        applyAudioOnly();
       };
 
       document.addEventListener('change', async (event) => {
@@ -135,7 +150,7 @@ import '../styles/global.css';
           default:
             return;
         }
-        document.getElementById('video-groups')!.hidden = settings['audio-only'];
+        applyAudioOnly();
         await saveSettings(settings);
       });
 
@@ -150,7 +165,11 @@ import '../styles/global.css';
       for (const box of document.querySelectorAll<HTMLInputElement>('[data-filename]')) {
         box.checked = Boolean(settings.filename[box.dataset.filename as keyof FilenameSettings]);
         box.addEventListener('change', async () => {
-          const key = box.dataset.filename as 'channel' | 'upload-date' | 'playlist-number';
+          const key = box.dataset.filename as
+            | 'channel'
+            | 'upload-date'
+            | 'playlist-number'
+            | 'video-id';
           settings.filename[key] = box.checked;
           refreshPreview();
           await saveSettings(settings);
@@ -173,7 +192,7 @@ import '../styles/global.css';
 
       const cookieOption = (value: string, text: string, disabled: boolean): HTMLLabelElement => {
         const label = document.createElement('label');
-        label.className = 'flex items-center gap-1';
+        label.className = 'option';
         const radio = document.createElement('input');
         radio.type = 'radio';
         radio.name = 'cookie-browser';
@@ -191,7 +210,6 @@ import '../styles/global.css';
           support.browser === 'chrome' ? 'Chrome' : 'Firefox',
           !support.supported,
         );
-        if (!support.supported) label.classList.add('text-neutral-400');
         group.append(label);
         if (support.reason) note.textContent = support.reason;
       }
