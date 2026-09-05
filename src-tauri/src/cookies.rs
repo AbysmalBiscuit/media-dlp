@@ -154,8 +154,8 @@ struct TempCopy {
 impl TempCopy {
     /// Both browsers hold their cookie store open while they run, so the query
     /// reads a copy instead. The `-wal` sidecar travels with it or recent
-    /// writes are invisible; SQLite replays the log on open because the copy
-    /// keeps the original file name.
+    /// writes are invisible; it is renamed in step with the database so the
+    /// `<database>-wal` pairing survives and SQLite replays the log on open.
     fn of(source: &Path) -> std::io::Result<Self> {
         let dir = std::env::temp_dir().join(format!(
             "media-dlp-cookies-{}-{}",
