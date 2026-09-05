@@ -185,12 +185,37 @@ pub fn config_path(app: tauri::AppHandle) -> Result<String, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::atomic::{AtomicU64, Ordering};
 
-    fn tmp() -> std::path::PathBuf {
-        let dir = std::env::temp_dir().join(format!("media-dlp-test-{}", std::process::id()));
+    /// The test binary runs these as threads in one process, so the directory
+    /// name carries a counter as well as the process id; sharing one directory
+    /// lets each test read back another's `config.toml`.
+    fn tmp() -> TempDir {
+        static SEQUENCE: AtomicU64 = AtomicU64::new(0);
+        let dir = std::env::temp_dir().join(format!(
+            "media-dlp-test-{}-{}",
+            std::process::id(),
+            SEQUENCE.fetch_add(1, Ordering::Relaxed)
+        ));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
-        dir
+        TempDir(dir)
+    }
+
+    struct TempDir(PathBuf);
+
+    impl std::ops::Deref for TempDir {
+        type Target = Path;
+
+        fn deref(&self) -> &Path {
+            &self.0
+        }
+    }
+
+    impl Drop for TempDir {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
     }
 
     #[test]
