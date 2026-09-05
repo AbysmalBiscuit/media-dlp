@@ -205,8 +205,6 @@
     color: var(--accent-soft-ink);
   }
 
-  /* Dimming here would compound with .option-stack.is-off, so the disabled
-     look comes from colour alone. */
   .option:has(input:disabled) {
     border-color: transparent;
     background: var(--surface-muted);
