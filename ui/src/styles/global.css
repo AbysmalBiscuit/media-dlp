@@ -212,6 +212,15 @@
     cursor: default;
   }
 
+  /* Selected and unavailable is its own state: the accent outline and ink say
+     which option is in force, the flat fill says it cannot be changed here.
+     :has() takes the specificity of its argument, so naming both pseudo-classes
+     is what lets this outrank the two rules above. */
+  .option:has(input:checked:disabled) {
+    border-color: var(--accent);
+    color: var(--accent-soft-ink);
+  }
+
   .toggle-row {
     display: flex;
     align-items: center;
