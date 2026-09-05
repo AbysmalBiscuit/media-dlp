@@ -12,6 +12,7 @@ use tokio::sync::oneshot;
 #[serde(rename_all = "camelCase")]
 pub struct ProbeInfo {
     pub title: String,
+    pub id: String,
     pub uploader: Option<String>,
     pub upload_date: Option<String>,
     pub thumbnail: Option<String>,
@@ -41,6 +42,7 @@ pub fn parse_probe(stdout: &str) -> Result<ProbeInfo, String> {
 
     Ok(ProbeInfo {
         title: text("title").ok_or_else(|| "that link has no title".to_string())?,
+        id: text("id").unwrap_or_default(),
         uploader: text("uploader"),
         upload_date: text("upload_date"),
         thumbnail: text("thumbnail"),
@@ -575,6 +577,7 @@ mod tests {
 
     const SINGLE: &str = r#"{
         "title": "A Video",
+        "id": "dQw4w9WgXcQ",
         "uploader": "A Channel",
         "upload_date": "20260214",
         "thumbnail": "https://example.com/t.jpg",
@@ -589,6 +592,7 @@ mod tests {
         "entries": [
             {
                 "title": "First Video",
+                "id": "dQw4w9WgXcQ",
                 "uploader": "A Channel",
                 "upload_date": "20260214",
                 "thumbnail": "https://example.com/t.jpg",
@@ -604,6 +608,18 @@ mod tests {
         assert_eq!(info.uploader.as_deref(), Some("A Channel"));
         assert_eq!(info.upload_date.as_deref(), Some("20260214"));
         assert_eq!(info.playlist_count, None);
+    }
+
+    #[test]
+    fn a_probe_with_an_id_surfaces_it() {
+        let info = parse_probe(SINGLE).unwrap();
+        assert_eq!(info.id, "dQw4w9WgXcQ");
+    }
+
+    #[test]
+    fn a_probe_without_an_id_yields_an_empty_string() {
+        let info = parse_probe(r#"{"title": "Bare", "webpage_url": "u"}"#).unwrap();
+        assert_eq!(info.id, "");
     }
 
     #[test]
