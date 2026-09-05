@@ -1,5 +1,6 @@
 pub mod args;
 pub mod binaries;
+pub mod cookies;
 pub mod job;
 pub mod settings;
 
@@ -25,6 +26,7 @@ pub fn run() {
             binaries::browser_support,
             binaries::ytdlp_version,
             binaries::check_for_updates,
+            cookies::cookie_check,
             job::probe,
             job::download,
             job::cancel,
