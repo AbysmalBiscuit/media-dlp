@@ -362,8 +362,13 @@ fn artifact_path(save_folder: &Path, destination: &str) -> PathBuf {
     }
 }
 
+/// Matches a destination's temp artifacts (`.part`, `.ytdl`, `.part-FragN`)
+/// and the destination itself: a stream that finished before cancel landed
+/// leaves a complete file under this name with no `.part` suffix, and a
+/// cancelled download is expected to leave nothing behind.
 fn is_download_artifact(entry_name: &str, base_name: &str) -> bool {
-    entry_name == format!("{base_name}.part")
+    entry_name == base_name
+        || entry_name == format!("{base_name}.part")
         || entry_name == format!("{base_name}.ytdl")
         || entry_name.starts_with(&format!("{base_name}.part-Frag"))
 }
@@ -855,6 +860,25 @@ mod tests {
             .map(|e| e.file_name().to_string_lossy().into_owned())
             .collect();
         assert_eq!(remaining, HashSet::from(["b.mp4".to_string()]));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn removes_a_completed_stream_that_finished_before_cancel_landed() {
+        let dir = artifact_temp_dir("completed-stream");
+        for name in ["video.f399.mp4", "video.f251.webm.part"] {
+            std::fs::write(dir.join(name), b"x").unwrap();
+        }
+        remove_download_artifacts(
+            &dir,
+            &["video.f399.mp4".to_string(), "video.f251.webm".to_string()],
+        );
+        let remaining: HashSet<String> = std::fs::read_dir(&dir)
+            .unwrap()
+            .flatten()
+            .map(|e| e.file_name().to_string_lossy().into_owned())
+            .collect();
+        assert!(remaining.is_empty());
         let _ = std::fs::remove_dir_all(&dir);
     }
 
