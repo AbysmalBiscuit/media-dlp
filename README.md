@@ -2,6 +2,10 @@
 
 A desktop wrapper around yt-dlp. Paste a link, pick a folder, press Download.
 
+## Prerequisites
+
+The commands below are devkit tasks, so devkit has to be installed to run them. It provides `devrun` and reads the task table in `devkit.toml`. Get it from [AbysmalBiscuit/devkit](https://github.com/AbysmalBiscuit/devkit).
+
 ## Running it
 
 `devrun task dev` starts the Astro dev server and the Tauri window together.
