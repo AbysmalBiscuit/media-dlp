@@ -1,0 +1,25 @@
+---
+import Icon from './Icon.astro';
+import type { IconName } from '../lib/icons';
+
+interface Props {
+  title: string;
+  icon: IconName;
+  id?: string;
+}
+
+const { title, icon, id } = Astro.props;
+---
+
+<details class="disclosure" id={id}>
+  <summary class="disclosure-summary">
+    <span class="disclosure-title">
+      <Icon name={icon} />
+      {title}
+    </span>
+    <Icon name="chevron-right" class="disclosure-marker" />
+  </summary>
+  <div class="disclosure-body">
+    <slot />
+  </div>
+</details>

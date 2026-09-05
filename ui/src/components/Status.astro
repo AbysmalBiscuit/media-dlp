@@ -1,29 +1,41 @@
+---
+import Icon from './Icon.astro';
+---
+
 <section class="flex flex-col gap-4">
   <div id="probe-card" hidden class="card flex items-center gap-3">
     <img id="probe-thumb" alt="" class="h-16 w-28 rounded bg-[var(--surface-muted)] object-cover" />
     <div class="min-w-0">
       <p id="probe-title" class="truncate font-medium"></p>
-      <p id="probe-sub" class="truncate text-sm text-[var(--ink-muted)]"></p>
+      <p id="probe-sub" class="truncate text-[var(--ink-muted)]"></p>
     </div>
   </div>
 
-  <button id="download" type="button" class="btn btn-primary w-full">Download</button>
+  <button id="download" type="button" class="btn btn-primary w-full">
+    <Icon name="download" size={22} /> Download
+  </button>
 
   <div id="progress-area" hidden class="flex flex-col gap-2">
     <div class="progress-track">
       <div id="progress-bar" class="progress-fill"></div>
     </div>
-    <p id="progress-text" class="truncate text-sm text-[var(--ink-muted)]"></p>
-    <button id="cancel" type="button" class="btn btn-quiet self-start">Cancel</button>
+    <p id="progress-text" class="truncate text-[var(--ink-muted)]"></p>
+    <button id="cancel" type="button" class="btn btn-quiet self-start">
+      <Icon name="x" /> Cancel
+    </button>
   </div>
 
   <div id="result" hidden class="card">
     <p id="result-message"></p>
-    <button id="open-folder" type="button" hidden class="btn btn-quiet mt-3">Open folder</button>
+    <button id="open-folder" type="button" hidden class="btn btn-quiet mt-3">
+      <Icon name="folder-open" /> Open folder
+    </button>
     <details id="result-details" hidden class="mt-3">
-      <summary class="cursor-pointer text-sm text-[var(--ink-muted)]">Show details</summary>
+      <summary class="cursor-pointer text-[var(--ink-muted)]">Show details</summary>
       <pre id="result-log" class="log mt-2"></pre>
-      <button id="copy-log" type="button" class="btn btn-quiet mt-2">Copy</button>
+      <button id="copy-log" type="button" class="btn btn-quiet mt-2">
+        <Icon name="copy" /> Copy
+      </button>
     </details>
   </div>
 </section>

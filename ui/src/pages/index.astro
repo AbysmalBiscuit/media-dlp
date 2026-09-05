@@ -1,7 +1,8 @@
 ---
-import Controls from '../components/Controls.astro';
 import Filename from '../components/Filename.astro';
+import Options from '../components/Options.astro';
 import SettingsPanel from '../components/SettingsPanel.astro';
+import Source from '../components/Source.astro';
 import Status from '../components/Status.astro';
 import '../styles/global.css';
 ---
@@ -19,11 +20,12 @@ import '../styles/global.css';
         <SettingsPanel />
       </header>
       <p id="startup-warning" class="warning"></p>
-      <Controls />
+      <Source />
       <div class="card">
         <Filename />
       </div>
       <Status />
+      <Options />
     </main>
 
     <script>
@@ -79,15 +81,16 @@ import '../styles/global.css';
 
       // A disabled <fieldset> disables its inputs natively, so the options keep
       // their place in the layout instead of the page reflowing on every toggle.
-      const setGroupEnabled = (id: string, enabled: boolean) => {
-        const container = document.getElementById(id)!;
-        container.classList.toggle('is-off', !enabled);
-        for (const group of container.querySelectorAll('fieldset')) group.disabled = !enabled;
-      };
-
+      // The audio groups are never disabled: which format and quality an
+      // audio-only download gets is worth setting before the switch is thrown.
       const applyAudioOnly = () => {
-        setGroupEnabled('video-groups', !settings['audio-only']);
-        setGroupEnabled('audio-groups', settings['audio-only']);
+        const audioOnly = settings['audio-only'];
+        const container = document.getElementById('video-groups')!;
+        container.classList.toggle('is-off', audioOnly);
+        for (const group of container.querySelectorAll('fieldset')) group.disabled = audioOnly;
+        document.getElementById('video-note')!.textContent = audioOnly
+          ? 'Audio only is on, so these do nothing.'
+          : '';
       };
 
       const extension = () =>
@@ -181,11 +184,7 @@ import '../styles/global.css';
       for (const box of document.querySelectorAll<HTMLInputElement>('[data-filename]')) {
         box.checked = Boolean(settings.filename[box.dataset.filename as keyof FilenameSettings]);
         box.addEventListener('change', async () => {
-          const key = box.dataset.filename as
-            | 'channel'
-            | 'upload-date'
-            | 'playlist-number'
-            | 'video-id';
+          const key = box.dataset.filename as 'channel' | 'upload-date' | 'playlist-number';
           settings.filename[key] = box.checked;
           refreshPreview();
           await saveSettings(settings);
@@ -310,6 +309,7 @@ import '../styles/global.css';
       const urlInput = document.getElementById('url') as HTMLInputElement;
       const card = document.getElementById('probe-card')!;
       const warning = document.getElementById('cookie-warning')!;
+      const cookieSection = document.getElementById('cookie-section') as HTMLDetailsElement;
       let probeTimer: ReturnType<typeof setTimeout> | undefined;
 
       const runCookieCheck = async (url: string) => {
@@ -323,7 +323,12 @@ import '../styles/global.css';
             { url, browser },
             { url: urlInput.value.trim(), browser: settings['cookie-browser'] },
           );
-          if (message) warning.textContent = message;
+          if (message) {
+            warning.textContent = message;
+            // Cookies starts collapsed, and a warning nobody can see is the
+            // same as no warning at all.
+            cookieSection.open = true;
+          }
         } catch {
           // A command that would not run is an unknown answer, which says nothing.
         }

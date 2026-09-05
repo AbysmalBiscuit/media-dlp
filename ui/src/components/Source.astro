@@ -1,0 +1,20 @@
+---
+import Icon from './Icon.astro';
+---
+
+<section class="flex flex-col gap-5">
+  <label class="block">
+    <span class="field-label"><Icon name="link" /> Media link</span>
+    <input id="url" type="url" placeholder="Paste a link" class="text-input mt-2" />
+  </label>
+
+  <label class="block">
+    <span class="field-label"><Icon name="folder" /> Save to</span>
+    <div class="mt-2 flex gap-2">
+      <input id="folder" type="text" readonly placeholder="No folder chosen" class="text-input" />
+      <button id="browse" type="button" class="btn btn-secondary shrink-0">
+        <Icon name="folder-open" /> Browse
+      </button>
+    </div>
+  </label>
+</section>

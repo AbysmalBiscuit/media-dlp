@@ -1,0 +1,73 @@
+---
+import Disclosure from './Disclosure.astro';
+import Icon from './Icon.astro';
+---
+
+<section class="flex flex-col gap-4">
+  <label class="toggle-row">
+    <input id="audio-only" type="checkbox" data-setting="audio-only" />
+    <Icon name="music" />
+    <span>Audio only</span>
+  </label>
+
+  <Disclosure title="Quality and format" icon="sliders-horizontal">
+    <div id="video-groups" class="option-stack">
+      <fieldset class="card">
+        <legend class="card-title">Video quality</legend>
+        <div class="option-grid mt-2" data-group="video-quality">
+          <label class="option"><input type="radio" name="video-quality" data-setting="video-quality" value="best" /> <span>Best available</span></label>
+          <label class="option"><input type="radio" name="video-quality" data-setting="video-quality" value="1080p" /> <span>1080p</span></label>
+          <label class="option"><input type="radio" name="video-quality" data-setting="video-quality" value="720p" /> <span>720p</span></label>
+          <label class="option"><input type="radio" name="video-quality" data-setting="video-quality" value="480p" /> <span>480p</span></label>
+        </div>
+      </fieldset>
+
+      <fieldset class="card">
+        <legend class="card-title">Video format</legend>
+        <div class="option-grid mt-2" data-group="video-format">
+          <label class="option"><input type="radio" name="video-format" data-setting="video-format" value="mp4" /> <span>mp4</span></label>
+          <label class="option"><input type="radio" name="video-format" data-setting="video-format" value="mkv" /> <span>mkv</span></label>
+          <label class="option"><input type="radio" name="video-format" data-setting="video-format" value="webm" /> <span>webm</span></label>
+        </div>
+      </fieldset>
+      <p id="video-note" class="note"></p>
+    </div>
+
+    <div class="option-stack">
+      <fieldset class="card">
+        <legend class="card-title">Audio format</legend>
+        <div class="option-grid mt-2">
+          <label class="option"><input type="radio" name="audio-format" data-setting="audio-format" value="mp3" /> <span>mp3</span></label>
+          <label class="option"><input type="radio" name="audio-format" data-setting="audio-format" value="m4a" /> <span>m4a</span></label>
+          <label class="option"><input type="radio" name="audio-format" data-setting="audio-format" value="opus" /> <span>opus</span></label>
+          <label class="option"><input type="radio" name="audio-format" data-setting="audio-format" value="wav" /> <span>wav</span></label>
+        </div>
+      </fieldset>
+
+      <fieldset class="card">
+        <legend class="card-title">Audio quality</legend>
+        <div class="option-grid mt-2">
+          <label class="option"><input type="radio" name="audio-quality" data-setting="audio-quality" value="best" /> <span>Best</span></label>
+          <label class="option"><input type="radio" name="audio-quality" data-setting="audio-quality" value="good" /> <span>Good</span></label>
+          <label class="option"><input type="radio" name="audio-quality" data-setting="audio-quality" value="smaller" /> <span>Smaller</span></label>
+        </div>
+        <p id="quality-note" class="note mt-3">
+          m4a and opus copy the audio unchanged, so this setting does nothing for them.
+        </p>
+      </fieldset>
+    </div>
+  </Disclosure>
+
+  <Disclosure title="Cookies" icon="cookie" id="cookie-section">
+    <p class="note">
+      Some sites only allow downloads while you are signed in. Pick the browser you are signed in
+      with.
+    </p>
+    <fieldset class="card">
+      <legend class="card-title">Get cookies from</legend>
+      <div id="cookie-group" class="option-grid mt-2"></div>
+      <p id="cookie-note" class="note mt-3"></p>
+      <p id="cookie-warning" class="warning mt-3"></p>
+    </fieldset>
+  </Disclosure>
+</section>
