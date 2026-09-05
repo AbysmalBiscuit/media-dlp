@@ -253,13 +253,19 @@ import '../styles/global.css';
       const cancelButton = document.getElementById('cancel') as HTMLButtonElement;
       let lastFile = '';
 
+      const showResult = (message: string, showDetails = false, showOpenFolder = false) => {
+        area.hidden = true;
+        button.disabled = false;
+        resultMessage.textContent = message;
+        details.hidden = !showDetails;
+        openButton.hidden = !showOpenFolder;
+        result.hidden = false;
+      };
+
       button.addEventListener('click', async () => {
         const folder = settings['save-folder'];
         if (!folder) {
-          resultMessage.textContent = 'Choose a folder to save into first.';
-          details.hidden = true;
-          openButton.hidden = true;
-          result.hidden = false;
+          showResult('Choose a folder to save into first.');
           return;
         }
         result.hidden = true;
@@ -270,13 +276,7 @@ import '../styles/global.css';
         try {
           await download(settings, folder, urlInput.value.trim());
         } catch (error) {
-          area.hidden = true;
-          button.disabled = false;
-          resultMessage.textContent =
-            typeof error === 'string' ? error : 'That download did not start.';
-          details.hidden = true;
-          openButton.hidden = true;
-          result.hidden = false;
+          showResult(typeof error === 'string' ? error : 'That download did not start.');
         }
       });
 
@@ -290,18 +290,14 @@ import '../styles/global.css';
           // Cleanup may be incomplete, but the UI still needs to unstick.
         }
         cancelButton.disabled = false;
-        area.hidden = true;
-        button.disabled = false;
-        resultMessage.textContent = 'Cancelled.';
-        details.hidden = true;
-        openButton.hidden = true;
-        result.hidden = false;
+        showResult('Cancelled.');
       });
 
       await listen<Progress>('download-progress', ({ payload }) => {
         const done = payload.downloadedBytes ?? 0;
         const total = payload.totalBytes ?? 0;
-        bar.style.width = total ? `${Math.round((done / total) * 100)}%` : '0%';
+        const percent = total ? Math.min(100, Math.round((done / total) * 100)) : 0;
+        bar.style.width = `${percent}%`;
         const position =
           payload.playlistCount && payload.playlistIndex
             ? `video ${payload.playlistIndex} of ${payload.playlistCount}: `
@@ -311,22 +307,12 @@ import '../styles/global.css';
 
       await listen<DownloadFinished>('download-finished', ({ payload }) => {
         lastFile = payload.file;
-        area.hidden = true;
-        button.disabled = false;
-        resultMessage.textContent = 'Done.';
-        openButton.hidden = !lastFile;
-        details.hidden = true;
-        result.hidden = false;
+        showResult('Done.', false, Boolean(lastFile));
       });
 
       await listen<DownloadFailed>('download-failed', ({ payload }) => {
-        area.hidden = true;
-        button.disabled = false;
-        resultMessage.textContent = payload.message;
         log.textContent = payload.details;
-        details.hidden = false;
-        openButton.hidden = true;
-        result.hidden = false;
+        showResult(payload.message, true);
       });
 
       openButton.addEventListener('click', () => {
