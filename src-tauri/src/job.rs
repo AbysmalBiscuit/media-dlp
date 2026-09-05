@@ -290,6 +290,14 @@ fn download_destination(line: &str) -> Option<String> {
         .map(str::to_string)
 }
 
+/// yt-dlp prints this banner once per playlist entry, before that entry's own
+/// destination lines. It marks the point where an item already on disk stops
+/// being this job's in-flight item, so the accumulated destination list is
+/// reset here to keep a later cancel from reaching a completed item.
+fn is_playlist_item_start(line: &str) -> bool {
+    line.starts_with("[download] Downloading item ")
+}
+
 /// The path this job most recently reported as its output, whether from the
 /// downloader or from a post-processor. A merge or an audio extraction
 /// prints its own `Destination: ` line (or `Merging formats into "..."`)
@@ -467,6 +475,9 @@ pub async fn download(
         let mut destinations = Vec::new();
         let mut last_file = String::new();
         read_lines_lossy(stdout, |line| {
+            if is_playlist_item_start(line) {
+                destinations.clear();
+            }
             if let Some(dest) = download_destination(line) {
                 destinations.push(dest);
             }
@@ -792,6 +803,15 @@ mod tests {
     }
 
     #[test]
+    fn playlist_item_start_matches_only_the_banner_line() {
+        assert!(is_playlist_item_start(
+            "[download] Downloading item 1 of 10"
+        ));
+        assert!(!is_playlist_item_start("[download] Destination: video.mp4"));
+        assert!(!is_playlist_item_start("[download]  42.0% of ~10.00MiB"));
+    }
+
+    #[test]
     fn reported_destination_reads_a_postprocessor_destination_line() {
         assert_eq!(
             reported_destination("[ffmpeg] Destination: final.mp3"),
@@ -879,6 +899,61 @@ mod tests {
             .map(|e| e.file_name().to_string_lossy().into_owned())
             .collect();
         assert!(remaining.is_empty());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// Mirrors the accumulation `download`'s stdout pump performs: a
+    /// playlist item's banner resets the destination list before that
+    /// item's own destination lines are collected.
+    fn accumulate_destinations(lines: &[&str]) -> Vec<String> {
+        let mut destinations = Vec::new();
+        for line in lines {
+            if is_playlist_item_start(line) {
+                destinations.clear();
+            }
+            if let Some(dest) = download_destination(line) {
+                destinations.push(dest);
+            }
+        }
+        destinations
+    }
+
+    #[test]
+    fn a_playlist_item_banner_resets_the_destination_list() {
+        let destinations = accumulate_destinations(&[
+            "[download] Downloading item 1 of 2",
+            "[download] Destination: item1.mp4",
+            "[download] Downloading item 2 of 2",
+            "[download] Destination: item2.f137.mp4",
+            "[download] Destination: item2.f251.webm",
+        ]);
+        assert_eq!(
+            destinations,
+            vec!["item2.f137.mp4".to_string(), "item2.f251.webm".to_string()]
+        );
+    }
+
+    #[test]
+    fn cancelling_a_later_playlist_item_spares_earlier_finished_items() {
+        let destinations = accumulate_destinations(&[
+            "[download] Downloading item 1 of 2",
+            "[download] Destination: item1.mp4",
+            "[download] Downloading item 2 of 2",
+            "[download] Destination: item2.f137.mp4",
+            "[download] Destination: item2.f251.webm",
+        ]);
+
+        let dir = artifact_temp_dir("playlist-cancel");
+        for name in ["item1.mp4", "item2.f137.mp4.part", "item2.f251.webm.part"] {
+            std::fs::write(dir.join(name), b"x").unwrap();
+        }
+        remove_download_artifacts(&dir, &destinations);
+        let remaining: HashSet<String> = std::fs::read_dir(&dir)
+            .unwrap()
+            .flatten()
+            .map(|e| e.file_name().to_string_lossy().into_owned())
+            .collect();
+        assert_eq!(remaining, HashSet::from(["item1.mp4".to_string()]));
         let _ = std::fs::remove_dir_all(&dir);
     }
 
