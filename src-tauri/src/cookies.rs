@@ -28,6 +28,7 @@ pub async fn cookie_check(url: String, browser: CookieBrowser) -> Result<CookieC
 }
 
 fn check(url: &str, browser: CookieBrowser) -> CookieCheck {
+    sweep_stale_copies();
     let Some(domain) = registrable_domain(url) else {
         return CookieCheck {
             domain: String::new(),
@@ -157,11 +158,7 @@ impl TempCopy {
     /// writes are invisible; it is renamed in step with the database so the
     /// `<database>-wal` pairing survives and SQLite replays the log on open.
     fn of(source: &Path) -> std::io::Result<Self> {
-        let dir = std::env::temp_dir().join(format!(
-            "media-dlp-cookies-{}-{}",
-            std::process::id(),
-            COPY_SEQUENCE.fetch_add(1, Ordering::Relaxed)
-        ));
+        let dir = copy_root().join(copy_name());
         std::fs::create_dir_all(&dir)?;
         let copy = TempCopy {
             database: dir.join("cookies.sqlite"),
@@ -179,6 +176,40 @@ impl TempCopy {
 impl Drop for TempCopy {
     fn drop(&mut self) {
         let _ = std::fs::remove_dir_all(&self.dir);
+    }
+}
+
+/// Every copy lives under one directory so leftovers are identifiable.
+fn copy_root() -> PathBuf {
+    std::env::temp_dir().join("media-dlp-cookies")
+}
+
+fn copy_name() -> String {
+    format!(
+        "{}-{}",
+        std::process::id(),
+        COPY_SEQUENCE.fetch_add(1, Ordering::Relaxed)
+    )
+}
+
+/// `Drop` removes a copy on every in-process path, but killing the app mid
+/// check leaves one behind, so a check clears what earlier runs left. Copies
+/// named for this process may belong to a check running right now. Failures
+/// are ignored: another instance can hold a copy open, and a sweep that cannot
+/// run is not a reason to fail the check.
+fn sweep_stale_copies() {
+    sweep_stale_copies_in(&copy_root());
+}
+
+fn sweep_stale_copies_in(root: &Path) {
+    let Ok(entries) = std::fs::read_dir(root) else {
+        return;
+    };
+    let mine = format!("{}-", std::process::id());
+    for entry in entries.flatten() {
+        if !entry.file_name().to_string_lossy().starts_with(&mine) {
+            let _ = std::fs::remove_dir_all(entry.path());
+        }
     }
 }
 
@@ -417,7 +448,7 @@ mod tests {
         assert!(check.domain.is_empty());
     }
 
-    fn firefox_store(hosts: &[&str]) -> (PathBuf, PathBuf) {
+    fn test_dir() -> PathBuf {
         let dir = std::env::temp_dir().join(format!(
             "media-dlp-cookies-test-{}-{}",
             std::process::id(),
@@ -425,6 +456,11 @@ mod tests {
         ));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    fn firefox_store(hosts: &[&str]) -> (PathBuf, PathBuf) {
+        let dir = test_dir();
         let database = dir.join("cookies.sqlite");
         let conn = Connection::open(&database).unwrap();
         conn.execute("CREATE TABLE moz_cookies (host TEXT)", [])
@@ -483,6 +519,27 @@ mod tests {
             )
             .is_err()
         );
+    }
+
+    #[test]
+    fn a_sweep_removes_copies_from_earlier_runs_and_spares_this_one() {
+        let root = test_dir();
+        let stale = root.join(format!("{}-0", std::process::id() + 1));
+        let live = root.join(copy_name());
+        std::fs::create_dir_all(&stale).unwrap();
+        std::fs::create_dir_all(&live).unwrap();
+
+        sweep_stale_copies_in(&root);
+
+        let (stale_exists, live_exists) = (stale.exists(), live.exists());
+        let _ = std::fs::remove_dir_all(&root);
+        assert!(!stale_exists);
+        assert!(live_exists);
+    }
+
+    #[test]
+    fn a_sweep_of_a_directory_that_is_not_there_is_not_an_error() {
+        sweep_stale_copies_in(&std::env::temp_dir().join("media-dlp-cookies-does-not-exist"));
     }
 
     #[test]
