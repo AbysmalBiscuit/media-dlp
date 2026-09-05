@@ -90,14 +90,18 @@ pub fn filename_template(f: &FilenameSettings) -> String {
     let mut t = String::new();
     for (enabled, field) in [
         (f.playlist_number, "playlist_index"),
-        (f.upload_date, "upload_date"),
+        (f.upload_date, "upload_date>%Y-%m-%d"),
         (f.channel, "uploader"),
     ] {
         if enabled {
             t.push_str(&format!("%({field}&{{}}{sep}|)s"));
         }
     }
-    t.push_str("%(title)s.%(ext)s");
+    t.push_str("%(title)s");
+    if f.video_id {
+        t.push_str(&format!("%(id&{sep}{{}}|)s"));
+    }
+    t.push_str(".%(ext)s");
     t
 }
 
@@ -208,6 +212,7 @@ mod tests {
             channel: false,
             upload_date: false,
             playlist_number: false,
+            video_id: false,
             separator: Separator::Dash,
         };
         assert_eq!(filename_template(&f), "%(title)s.%(ext)s");
@@ -219,11 +224,12 @@ mod tests {
             channel: true,
             upload_date: true,
             playlist_number: true,
+            video_id: true,
             separator: Separator::Dash,
         };
         assert_eq!(
             filename_template(&f),
-            "%(playlist_index&{} - |)s%(upload_date&{} - |)s%(uploader&{} - |)s%(title)s.%(ext)s"
+            "%(playlist_index&{} - |)s%(upload_date>%Y-%m-%d&{} - |)s%(uploader&{} - |)s%(title)s%(id& - {}|)s.%(ext)s"
         );
     }
 
@@ -233,11 +239,47 @@ mod tests {
             channel: true,
             upload_date: false,
             playlist_number: true,
+            video_id: true,
             separator: Separator::Underscore,
         };
         assert_eq!(
             filename_template(&f),
-            "%(playlist_index&{}_|)s%(uploader&{}_|)s%(title)s.%(ext)s"
+            "%(playlist_index&{}_|)s%(uploader&{}_|)s%(title)s%(id&_{}|)s.%(ext)s"
+        );
+    }
+
+    #[test]
+    fn the_upload_date_chip_formats_as_strftime() {
+        let f = FilenameSettings {
+            upload_date: true,
+            playlist_number: false,
+            video_id: false,
+            ..FilenameSettings::default()
+        };
+        assert_eq!(
+            filename_template(&f),
+            "%(upload_date>%Y-%m-%d&{} - |)s%(title)s.%(ext)s"
+        );
+    }
+
+    #[test]
+    fn the_id_chip_is_present_by_default() {
+        let f = FilenameSettings::default();
+        assert_eq!(
+            filename_template(&f),
+            "%(playlist_index&{} - |)s%(title)s%(id& - {}|)s.%(ext)s"
+        );
+    }
+
+    #[test]
+    fn the_id_chip_is_absent_when_the_flag_is_off() {
+        let f = FilenameSettings {
+            video_id: false,
+            ..FilenameSettings::default()
+        };
+        assert_eq!(
+            filename_template(&f),
+            "%(playlist_index&{} - |)s%(title)s.%(ext)s"
         );
     }
 
@@ -330,7 +372,11 @@ mod tests {
 
     #[test]
     fn no_cookie_flag_when_no_browser_is_chosen() {
-        let argv = download_args(&Settings::default(), &bins(), &folder(), "URL");
+        let s = Settings {
+            cookie_browser: None,
+            ..Settings::default()
+        };
+        let argv = download_args(&s, &bins(), &folder(), "URL");
         assert!(!argv.iter().any(|a| a == "--cookies-from-browser"));
     }
 
@@ -353,7 +399,7 @@ mod tests {
         assert_eq!(arg_after(&argv, "-P").unwrap(), r"C:\Downloads");
         assert_eq!(
             arg_after(&argv, "-o").unwrap(),
-            "%(playlist_index&{} - |)s%(title)s.%(ext)s"
+            "%(playlist_index&{} - |)s%(title)s%(id& - {}|)s.%(ext)s"
         );
         assert_eq!(arg_after(&argv, "--trim-filenames").unwrap(), "120");
         assert_eq!(
