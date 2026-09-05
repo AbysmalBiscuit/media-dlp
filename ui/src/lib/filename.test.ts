@@ -25,7 +25,7 @@ test('title only when every chip is off', () => {
 
 test('chips compose in a fixed order', () => {
   const f = chips({ channel: true, 'upload-date': true, 'playlist-number': true });
-  expect(previewFilename(f, info, 'mp4')).toBe('1 - 2026-02-14 - A Channel - A Video.mp4');
+  expect(previewFilename(f, info, 'mp4')).toBe('1 - 20260214 - A Channel - A Video.mp4');
 });
 
 test('the separator reaches every chip', () => {

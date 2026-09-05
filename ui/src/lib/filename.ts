@@ -6,8 +6,6 @@ const SEPARATORS: Record<Separator, string> = {
   space: ' ',
 };
 
-const humanDate = (raw: string) => `${raw.slice(0, 4)}-${raw.slice(4, 6)}-${raw.slice(6, 8)}`;
-
 const SUBSTITUTES: Record<string, string> = {
   '"': '＂',
   '*': '＊',
@@ -30,7 +28,7 @@ export function previewFilename(
   const separator = SEPARATORS[f.separator];
   const parts: string[] = [];
   if (f['playlist-number'] && info?.playlistCount) parts.push('1');
-  if (f['upload-date'] && info?.uploadDate) parts.push(humanDate(info.uploadDate));
+  if (f['upload-date'] && info?.uploadDate) parts.push(info.uploadDate);
   if (f.channel && info?.uploader) parts.push(sanitize(info.uploader));
   parts.push(sanitize(info?.title ?? 'Video title'));
   return `${parts.join(separator)}.${extension}`;
