@@ -37,7 +37,7 @@ export interface BrowserSupport {
 export type CookieStatus = 'present' | 'absent' | 'unknown';
 
 export interface CookieCheck {
-  domain: string;
+  site: string;
   status: CookieStatus;
 }
 

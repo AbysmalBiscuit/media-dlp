@@ -7,7 +7,7 @@ const asked = { url, browser: 'firefox' } as const;
 const now = { url, browser: 'firefox' } as const;
 
 const check = (status: CookieCheck['status']): CookieCheck => ({
-  domain: 'instagram.com',
+  site: 'instagram.com',
   status,
 });
 

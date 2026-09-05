@@ -31,5 +31,5 @@ export function cookieWarning(
   if (asked.url !== current.url || asked.browser !== current.browser) return null;
   if (result.status !== 'absent') return null;
   const browser = BROWSER_LABELS[asked.browser];
-  return `${browser} has no cookies for ${result.domain}. If this link needs you to be signed in, sign in to ${result.domain} in ${browser} and try again.`;
+  return `${browser} has no cookies for ${result.site}. If this link needs you to be signed in, sign in to ${result.site} in ${browser} and try again.`;
 }
