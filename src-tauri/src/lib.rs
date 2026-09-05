@@ -7,6 +7,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
+        .manage(job::RunningJob::default())
         .setup(|app| {
             let handle = app.handle().clone();
             std::thread::spawn(move || {
@@ -25,6 +26,8 @@ pub fn run() {
             binaries::ytdlp_version,
             binaries::check_for_updates,
             job::probe,
+            job::download,
+            job::cancel,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
