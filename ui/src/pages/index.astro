@@ -189,6 +189,14 @@ import '../styles/global.css';
 
       document.addEventListener('change', refreshPreview);
 
+      // Everything the window shows on launch comes from settings, so it is
+      // painted here rather than after the yt-dlp version lookup and the event
+      // registrations below. Those take a round trip each, and until they
+      // returned the window sat with nothing chosen and no save folder.
+      apply();
+      refreshPreview();
+      applyTheme();
+
       const group = document.getElementById('cookie-group')!;
       const note = document.getElementById('cookie-note')!;
 
@@ -201,6 +209,7 @@ import '../styles/global.css';
         radio.dataset.setting = 'cookie-browser';
         radio.value = value;
         radio.disabled = disabled;
+        radio.checked = (settings['cookie-browser'] ?? 'none') === value;
         label.append(radio, ` ${text}`);
         return label;
       };
@@ -407,10 +416,6 @@ import '../styles/global.css';
       document.getElementById('copy-log')!.addEventListener('click', () => {
         navigator.clipboard.writeText(log.textContent ?? '');
       });
-
-      apply();
-      refreshPreview();
-      applyTheme();
     </script>
   </body>
 </html>
