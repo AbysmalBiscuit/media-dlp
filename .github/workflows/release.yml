@@ -1,0 +1,136 @@
+name: release
+
+on:
+  push:
+    tags: ['v[0-9]+.[0-9]+.[0-9]+']
+  # Building without a tag exercises the whole matrix without cutting a release;
+  # attaching the bundles is the only step a tag gates.
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  YTDLP_VERSION: '2026.08.19'
+  # eugeneware/ffmpeg-static publishes ffmpeg and ffprobe for every target here
+  # as release assets, so a cross-compiled build fetches binaries for the target
+  # rather than for the runner it happens to be on.
+  FFMPEG_STATIC_TAG: 'b6.1.1'
+
+jobs:
+  bundle:
+    name: ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            ffmpeg: win32-x64
+            ytdlp: yt-dlp.exe
+          - os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            ffmpeg: linux-x64
+            ytdlp: yt-dlp_linux
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            ffmpeg: darwin-arm64
+            ytdlp: yt-dlp_macos
+          # macos-latest is Apple Silicon; the Intel bundle cross-compiles from it.
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            ffmpeg: darwin-x64
+            ytdlp: yt-dlp_macos
+
+    steps:
+      - uses: actions/checkout@v5
+
+      # patchelf and libfuse2 are for the AppImage step rather than the compile:
+      # the bundler rewrites the binary's interpreter and then runs appimagetool,
+      # which is itself an AppImage and needs FUSE to mount.
+      - name: Install the WebKit and GTK development packages
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libfuse2
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+
+      - uses: oven-sh/setup-bun@v2
+
+      - run: bun install --frozen-lockfile --cwd ui
+
+      # `binaries/` is gitignored, so every bundle build populates it first.
+      # yt-dlp resolves ffprobe from whatever directory holds ffmpeg, so the two
+      # have to land side by side.
+      - name: Fetch yt-dlp, ffmpeg and ffprobe
+        shell: bash
+        run: |
+          set -euo pipefail
+          out=src-tauri/binaries
+          mkdir -p "$out"
+
+          ext=''
+          if [ "$RUNNER_OS" = 'Windows' ]; then
+            ext='.exe'
+          fi
+
+          ffmpeg_release="https://github.com/eugeneware/ffmpeg-static/releases/download/${FFMPEG_STATIC_TAG}"
+          for bin in ffmpeg ffprobe; do
+            curl -fsSL -o "${out}/${bin}${ext}.gz" "${ffmpeg_release}/${bin}-${{ matrix.ffmpeg }}.gz"
+            gunzip -f "${out}/${bin}${ext}.gz"
+          done
+
+          # These are GPL builds, so the licence travels with them into the bundle.
+          curl -fsSL -o "${out}/FFMPEG-LICENSE.md" "${ffmpeg_release}/${{ matrix.ffmpeg }}.LICENSE"
+
+          curl -fsSL -o "${out}/yt-dlp${ext}" \
+            "https://github.com/yt-dlp/yt-dlp/releases/download/${YTDLP_VERSION}/${{ matrix.ytdlp }}"
+
+          if [ -z "$ext" ]; then
+            chmod +x "${out}/ffmpeg" "${out}/ffprobe" "${out}/yt-dlp"
+          fi
+
+      - name: Build the bundles
+        id: build
+        uses: tauri-apps/tauri-action@v1
+        with:
+          # No tagName or releaseId on purpose. Given either, the action updates
+          # the release release-please already published and rewrites its body
+          # with the empty default, discarding the changelog. Uploading
+          # separately below leaves that release untouched.
+          args: --target ${{ matrix.target }}
+
+      - name: Attach the bundles to the release
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ARTIFACT_PATHS: ${{ steps.build.outputs.artifactPaths }}
+        run: |
+          set -euo pipefail
+
+          # `.app` is a directory, and the action reports it before repacking it
+          # into the dmg. Reading line by line rather than with mapfile keeps
+          # this working under the bash 3.2 on the macOS runners.
+          paths=()
+          while IFS= read -r path; do
+            case "$path" in *.app) continue ;; esac
+            paths+=("$path")
+          done < <(jq -r '.[]' <<< "$ARTIFACT_PATHS")
+
+          if [ ${#paths[@]} -eq 0 ]; then
+            echo "no uploadable artifacts in: $ARTIFACT_PATHS" >&2
+            exit 1
+          fi
+
+          printf 'uploading %s\n' "${paths[@]}"
+          gh release upload "$GITHUB_REF_NAME" "${paths[@]}" --clobber \
+            --repo "$GITHUB_REPOSITORY"
