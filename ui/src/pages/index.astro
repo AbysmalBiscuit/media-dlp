@@ -246,6 +246,21 @@ import '../styles/global.css';
       document.getElementById('open-settings')!.addEventListener('click', () => dialog.showModal());
       document.getElementById('close-settings')!.addEventListener('click', () => dialog.close());
 
+      // A click on the backdrop is reported against the dialog itself, so the
+      // pointer position is what separates it from a click on the dialog's own
+      // padding. A keyboard-activated click carries no position and is left
+      // alone.
+      dialog.addEventListener('click', (event) => {
+        if (event.detail === 0) return;
+        const box = dialog.getBoundingClientRect();
+        const outside =
+          event.clientX < box.left ||
+          event.clientX > box.right ||
+          event.clientY < box.top ||
+          event.clientY > box.bottom;
+        if (outside) dialog.close();
+      });
+
       const path = await configPath().catch(() => {
         reportStartupFailure();
         return '';

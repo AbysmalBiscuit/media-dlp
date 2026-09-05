@@ -380,8 +380,15 @@
     white-space: pre-wrap;
   }
 
+  /* Tailwind's reset zeroes the margin a modal <dialog> centres itself with,
+     so the inset and the auto margin are spelled out again here. */
   .dialog {
+    position: fixed;
+    inset: 0;
+    margin: auto;
     max-width: min(30rem, calc(100vw - 2rem));
+    max-height: calc(100vh - 3rem);
+    overflow: auto;
     border: 1px solid var(--line);
     border-radius: 0.75rem;
     background: var(--surface);
@@ -389,6 +396,7 @@
   }
 
   .dialog::backdrop {
-    background: rgb(0 0 0 / 0.5);
+    background: rgb(0 0 0 / 0.45);
+    backdrop-filter: blur(6px);
   }
 }
