@@ -539,9 +539,8 @@ pub async fn download(
 
 #[tauri::command]
 pub async fn cancel(running: State<'_, RunningJob>, save_folder: String) -> Result<(), String> {
-    // Cleanup now runs inside `download`, keyed off the destinations it
-    // observed; the folder is kept as a parameter only to preserve the
-    // existing command signature the frontend already calls against.
+    // Cleanup is driven by the destinations `download` itself observed, so
+    // this parameter is accepted but unused.
     let _save_folder = save_folder;
     let request = running.take();
     if let Some(request) = request {
