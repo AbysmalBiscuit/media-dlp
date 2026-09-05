@@ -6,7 +6,10 @@
   "permissions": [
     "core:default",
     "dialog:allow-open",
-    "opener:allow-open-path",
+    {
+      "identifier": "opener:allow-open-path",
+      "allow": [{ "path": "$APPCONFIG/config.toml" }]
+    },
     "opener:allow-reveal-item-in-dir"
   ]
 }
