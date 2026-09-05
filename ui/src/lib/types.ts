@@ -34,6 +34,13 @@ export interface BrowserSupport {
   reason: string | null;
 }
 
+export type CookieStatus = 'present' | 'absent' | 'unknown';
+
+export interface CookieCheck {
+  domain: string;
+  status: CookieStatus;
+}
+
 export interface ProbeInfo {
   title: string;
   uploader: string | null;

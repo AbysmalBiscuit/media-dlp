@@ -34,12 +34,14 @@ import '../styles/global.css';
         cancel,
         checkForUpdates,
         configPath,
+        cookieCheck,
         download,
         getSettings,
         probe,
         saveSettings,
         ytdlpVersion,
       } from '../lib/api';
+      import { BROWSER_LABELS, cookieWarning } from '../lib/cookies';
       import { previewFilename } from '../lib/filename';
       import type {
         DownloadFailed,
@@ -203,16 +205,17 @@ import '../styles/global.css';
         return label;
       };
 
+      const support = await browserSupport();
       group.append(cookieOption('none', 'None', false));
-      for (const support of await browserSupport()) {
-        const label = cookieOption(
-          support.browser,
-          support.browser === 'chrome' ? 'Chrome' : 'Firefox',
-          !support.supported,
-        );
-        group.append(label);
-        if (support.reason) note.textContent = support.reason;
+      for (const { browser, supported, reason } of support) {
+        group.append(cookieOption(browser, BROWSER_LABELS[browser], !supported));
+        if (reason) note.textContent = reason;
       }
+
+      // A browser the app will not let the user select is never checked: cookie
+      // presence needs no decryption, so an unsupported browser answers
+      // `present` for a site whose download would still fail.
+      const selectable = new Set(support.filter((s) => s.supported).map((s) => s.browser));
 
       const dialog = document.getElementById('settings') as HTMLDialogElement;
       document.getElementById('open-settings')!.addEventListener('click', () => dialog.showModal());
@@ -275,13 +278,40 @@ import '../styles/global.css';
 
       const urlInput = document.getElementById('url') as HTMLInputElement;
       const card = document.getElementById('probe-card')!;
+      const warning = document.getElementById('cookie-warning')!;
       let probeTimer: ReturnType<typeof setTimeout> | undefined;
+
+      const runCookieCheck = async (url: string) => {
+        warning.textContent = '';
+        const browser = settings['cookie-browser'];
+        if (!url || !browser || !selectable.has(browser)) return;
+        try {
+          const checked = await cookieCheck(url, browser);
+          const message = cookieWarning(
+            checked,
+            { url, browser },
+            { url: urlInput.value.trim(), browser: settings['cookie-browser'] },
+          );
+          if (message) warning.textContent = message;
+        } catch {
+          // A command that would not run is an unknown answer, which says nothing.
+        }
+      };
+
+      // Registered after the listener that writes the radio into `settings`, so
+      // the check reads the browser the user just picked.
+      document.addEventListener('change', (event) => {
+        const input = event.target as HTMLInputElement;
+        if (input.dataset.setting === 'cookie-browser') runCookieCheck(urlInput.value.trim());
+      });
 
       urlInput.addEventListener('input', () => {
         result.hidden = true;
+        warning.textContent = '';
         clearTimeout(probeTimer);
         probeTimer = setTimeout(async () => {
           const url = urlInput.value.trim();
+          runCookieCheck(url);
           if (!url) {
             probed = null;
             card.hidden = true;
