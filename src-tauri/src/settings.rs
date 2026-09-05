@@ -28,7 +28,11 @@ impl Default for Settings {
             audio_format: AudioFormat::Mp3,
             audio_quality: AudioQuality::Good,
             audio_only: false,
-            cookie_browser: None,
+            cookie_browser: if cfg!(target_os = "windows") {
+                Some(CookieBrowser::Firefox)
+            } else {
+                None
+            },
             filename: FilenameSettings::default(),
             theme: Theme::System,
             update_channel: UpdateChannel::Nightly,
@@ -200,6 +204,21 @@ mod tests {
         assert_eq!(s.video_quality, VideoQuality::Best);
         assert_eq!(s.update_channel, UpdateChannel::Nightly);
         assert!(!s.audio_only);
+        let expected_cookie_browser = if cfg!(target_os = "windows") {
+            Some(CookieBrowser::Firefox)
+        } else {
+            None
+        };
+        assert_eq!(s.cookie_browser, expected_cookie_browser);
+    }
+
+    #[test]
+    #[cfg(target_os = "windows")]
+    fn windows_defaults_to_firefox_cookies() {
+        assert_eq!(
+            Settings::default().cookie_browser,
+            Some(CookieBrowser::Firefox)
+        );
     }
 
     #[test]
