@@ -37,7 +37,7 @@ import '../styles/global.css';
         const input = event.target as HTMLInputElement;
         if (!input.dataset.setting) return;
         const key = input.dataset.setting as keyof Settings;
-        (settings as Record<string, unknown>)[key] =
+        (settings as unknown as Record<string, unknown>)[key] =
           input.type === 'checkbox' ? input.checked : input.value;
         document.getElementById('video-groups')!.hidden = settings['audio-only'];
         await saveSettings(settings);

@@ -58,3 +58,7 @@ run = ["ui/node_modules/.bin/tauri.exe", "build", "--config", "src-tauri/tauri.c
 [tasks.ui-test]
 description = "Run the frontend unit tests"
 run = ["bun", "test", "ui"]
+
+[tasks.ui-check]
+description = "Type-check the Astro frontend"
+run = ["ui/node_modules/.bin/astro.exe", "check", "--root", "ui"]
