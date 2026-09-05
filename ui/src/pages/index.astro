@@ -2,6 +2,7 @@
 import Controls from '../components/Controls.astro';
 import Filename from '../components/Filename.astro';
 import SettingsPanel from '../components/SettingsPanel.astro';
+import Status from '../components/Status.astro';
 import '../styles/global.css';
 ---
 
@@ -19,21 +20,34 @@ import '../styles/global.css';
       </div>
       <Controls />
       <Filename />
+      <Status />
     </main>
 
     <script>
+      import { listen } from '@tauri-apps/api/event';
       import { open } from '@tauri-apps/plugin-dialog';
-      import { openPath } from '@tauri-apps/plugin-opener';
+      import { openPath, revealItemInDir } from '@tauri-apps/plugin-opener';
       import {
         browserSupport,
+        cancel,
         checkForUpdates,
         configPath,
+        download,
         getSettings,
+        probe,
         saveSettings,
         ytdlpVersion,
       } from '../lib/api';
       import { previewFilename } from '../lib/filename';
-      import type { FilenameSettings, ProbeInfo, Separator, Settings } from '../lib/types';
+      import type {
+        DownloadFailed,
+        DownloadFinished,
+        FilenameSettings,
+        Progress,
+        ProbeInfo,
+        Separator,
+        Settings,
+      } from '../lib/types';
 
       const settings: Settings = await getSettings();
 
@@ -194,6 +208,134 @@ import '../styles/global.css';
       });
 
       document.addEventListener('change', applyTheme);
+
+      const urlInput = document.getElementById('url') as HTMLInputElement;
+      const card = document.getElementById('probe-card')!;
+      let probeTimer: ReturnType<typeof setTimeout> | undefined;
+
+      urlInput.addEventListener('input', () => {
+        clearTimeout(probeTimer);
+        probeTimer = setTimeout(async () => {
+          const url = urlInput.value.trim();
+          if (!url) {
+            probed = null;
+            card.hidden = true;
+            refreshPreview();
+            return;
+          }
+          try {
+            probed = await probe(url);
+            (document.getElementById('probe-title') as HTMLElement).textContent = probed.title;
+            (document.getElementById('probe-sub') as HTMLElement).textContent = probed.playlistCount
+              ? `${probed.uploader ?? 'Unknown channel'} - playlist of ${probed.playlistCount}`
+              : (probed.uploader ?? '');
+            const thumb = document.getElementById('probe-thumb') as HTMLImageElement;
+            thumb.src = probed.thumbnail ?? '';
+            thumb.hidden = !probed.thumbnail;
+            card.hidden = false;
+          } catch {
+            probed = null;
+            card.hidden = true;
+          }
+          refreshPreview();
+        }, 400);
+      });
+
+      const button = document.getElementById('download') as HTMLButtonElement;
+      const area = document.getElementById('progress-area')!;
+      const bar = document.getElementById('progress-bar') as HTMLElement;
+      const text = document.getElementById('progress-text')!;
+      const result = document.getElementById('result')!;
+      const resultMessage = document.getElementById('result-message')!;
+      const details = document.getElementById('result-details') as HTMLDetailsElement;
+      const log = document.getElementById('result-log')!;
+      const openButton = document.getElementById('open-folder') as HTMLButtonElement;
+      const cancelButton = document.getElementById('cancel') as HTMLButtonElement;
+      let lastFile = '';
+
+      button.addEventListener('click', async () => {
+        const folder = settings['save-folder'];
+        if (!folder) {
+          resultMessage.textContent = 'Choose a folder to save into first.';
+          details.hidden = true;
+          openButton.hidden = true;
+          result.hidden = false;
+          return;
+        }
+        result.hidden = true;
+        area.hidden = false;
+        button.disabled = true;
+        bar.style.width = '0%';
+        text.textContent = 'Starting';
+        try {
+          await download(settings, folder, urlInput.value.trim());
+        } catch (error) {
+          area.hidden = true;
+          button.disabled = false;
+          resultMessage.textContent =
+            typeof error === 'string' ? error : 'That download did not start.';
+          details.hidden = true;
+          openButton.hidden = true;
+          result.hidden = false;
+        }
+      });
+
+      cancelButton.addEventListener('click', async () => {
+        const folder = settings['save-folder'];
+        if (!folder) return;
+        cancelButton.disabled = true;
+        try {
+          await cancel(folder);
+        } catch {
+          // Cleanup may be incomplete, but the UI still needs to unstick.
+        }
+        cancelButton.disabled = false;
+        area.hidden = true;
+        button.disabled = false;
+        resultMessage.textContent = 'Cancelled.';
+        details.hidden = true;
+        openButton.hidden = true;
+        result.hidden = false;
+      });
+
+      await listen<Progress>('download-progress', ({ payload }) => {
+        const done = payload.downloadedBytes ?? 0;
+        const total = payload.totalBytes ?? 0;
+        bar.style.width = total ? `${Math.round((done / total) * 100)}%` : '0%';
+        const position =
+          payload.playlistCount && payload.playlistIndex
+            ? `video ${payload.playlistIndex} of ${payload.playlistCount}: `
+            : '';
+        text.textContent = `${position}${payload.title ?? ''}`;
+      });
+
+      await listen<DownloadFinished>('download-finished', ({ payload }) => {
+        lastFile = payload.file;
+        area.hidden = true;
+        button.disabled = false;
+        resultMessage.textContent = 'Done.';
+        openButton.hidden = !lastFile;
+        details.hidden = true;
+        result.hidden = false;
+      });
+
+      await listen<DownloadFailed>('download-failed', ({ payload }) => {
+        area.hidden = true;
+        button.disabled = false;
+        resultMessage.textContent = payload.message;
+        log.textContent = payload.details;
+        details.hidden = false;
+        openButton.hidden = true;
+        result.hidden = false;
+      });
+
+      openButton.addEventListener('click', () => {
+        if (lastFile) revealItemInDir(lastFile);
+      });
+
+      document.getElementById('copy-log')!.addEventListener('click', () => {
+        navigator.clipboard.writeText(log.textContent ?? '');
+      });
 
       apply();
       refreshPreview();

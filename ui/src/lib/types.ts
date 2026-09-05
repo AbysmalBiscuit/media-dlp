@@ -54,3 +54,12 @@ export interface Progress {
   playlistCount: number | null;
   title: string | null;
 }
+
+export interface DownloadFinished {
+  file: string;
+}
+
+export interface DownloadFailed {
+  message: string;
+  details: string;
+}
