@@ -1,6 +1,7 @@
 use crate::args::BinaryPaths;
 use crate::settings::{CookieBrowser, UpdateChannel};
 use serde::Serialize;
+use std::path::Path;
 use tauri::Manager;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -57,6 +58,15 @@ fn exe_name(stem: &str, platform: Platform) -> String {
     }
 }
 
+/// Copies to a temp file beside `dest` and renames it into place. Rename is
+/// atomic on the same volume, so a crash mid-copy never leaves a truncated
+/// file at `dest` for a later launch to mistake for a complete staged binary.
+fn stage_atomically(src: &Path, dest: &Path) -> Result<(), String> {
+    let tmp = dest.with_extension("part");
+    std::fs::copy(src, &tmp).map_err(|e| e.to_string())?;
+    std::fs::rename(&tmp, dest).map_err(|e| e.to_string())
+}
+
 /// yt-dlp overwrites itself when it self-updates, so it is staged into the
 /// writable data directory; the install directory is read-only for a normal user.
 pub fn resolve(app: &tauri::AppHandle) -> Result<BinaryPaths, String> {
@@ -76,15 +86,25 @@ pub fn resolve(app: &tauri::AppHandle) -> Result<BinaryPaths, String> {
     let ytdlp_name = exe_name("yt-dlp", platform);
     let staged = data.join(&ytdlp_name);
     if !staged.exists() {
-        std::fs::copy(resources.join(&ytdlp_name), &staged)
+        stage_atomically(&resources.join(&ytdlp_name), &staged)
             .map_err(|e| format!("could not stage yt-dlp from {}: {e}", resources.display()))?;
+    }
+
+    let ffmpeg = resources.join(exe_name("ffmpeg", platform));
+    if !ffmpeg.exists() {
+        return Err(format!("ffmpeg not found at {}", ffmpeg.display()));
     }
 
     Ok(BinaryPaths {
         ytdlp: staged,
-        ffmpeg: resources.join(exe_name("ffmpeg", platform)),
+        ffmpeg,
     })
 }
+
+/// Suppresses the console window that would otherwise flash on screen when
+/// this windowed application spawns a console subprocess.
+#[cfg(windows)]
+const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
 fn run_ytdlp(bins: &BinaryPaths, args: &[&str]) -> Result<String, String> {
     let mut command = std::process::Command::new(&bins.ytdlp);
@@ -92,10 +112,18 @@ fn run_ytdlp(bins: &BinaryPaths, args: &[&str]) -> Result<String, String> {
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
-        command.creation_flags(0x0800_0000);
+        command.creation_flags(CREATE_NO_WINDOW);
     }
     let out = command.output().map_err(|e| e.to_string())?;
-    Ok(String::from_utf8_lossy(&out.stdout).trim().to_string())
+    ytdlp_result(out)
+}
+
+fn ytdlp_result(out: std::process::Output) -> Result<String, String> {
+    if out.status.success() {
+        Ok(String::from_utf8_lossy(&out.stdout).trim().to_string())
+    } else {
+        Err(String::from_utf8_lossy(&out.stderr).trim().to_string())
+    }
 }
 
 #[tauri::command]
@@ -172,5 +200,50 @@ mod tests {
         assert_eq!(exe_name("yt-dlp", Platform::Windows), "yt-dlp.exe");
         assert_eq!(exe_name("yt-dlp", Platform::Linux), "yt-dlp");
         assert_eq!(exe_name("ffmpeg", Platform::MacOs), "ffmpeg");
+    }
+
+    #[test]
+    fn stage_atomically_copies_the_source_content_to_dest() {
+        let dir = std::env::temp_dir().join(format!("media-dlp-stage-test-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let src = dir.join("source.bin");
+        std::fs::write(&src, b"binary content").unwrap();
+        let dest = dir.join("staged.bin");
+
+        stage_atomically(&src, &dest).unwrap();
+
+        assert_eq!(std::fs::read(&dest).unwrap(), b"binary content");
+        assert!(!dest.with_extension("part").exists());
+    }
+
+    fn fake_output(success: bool, stdout: &str, stderr: &str) -> std::process::Output {
+        #[cfg(windows)]
+        let status = {
+            use std::os::windows::process::ExitStatusExt;
+            std::process::ExitStatus::from_raw(u32::from(!success))
+        };
+        #[cfg(unix)]
+        let status = {
+            use std::os::unix::process::ExitStatusExt;
+            std::process::ExitStatus::from_raw(if success { 0 } else { 256 })
+        };
+        std::process::Output {
+            status,
+            stdout: stdout.as_bytes().to_vec(),
+            stderr: stderr.as_bytes().to_vec(),
+        }
+    }
+
+    #[test]
+    fn a_successful_run_returns_trimmed_stdout() {
+        let out = fake_output(true, "2026.08.19\n", "");
+        assert_eq!(ytdlp_result(out).unwrap(), "2026.08.19");
+    }
+
+    #[test]
+    fn a_nonzero_exit_is_reported_as_an_error_with_stderr() {
+        let out = fake_output(false, "", "network error\n");
+        assert_eq!(ytdlp_result(out).unwrap_err(), "network error");
     }
 }
