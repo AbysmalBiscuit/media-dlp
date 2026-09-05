@@ -119,6 +119,7 @@ pub fn parse_progress_line(line: &str) -> Option<Progress> {
 }
 
 /// Without this flag, spawning yt-dlp flashes a console window on Windows.
+#[cfg(windows)]
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
 fn ytdlp_command(ytdlp: &Path, argv: &[String]) -> tokio::process::Command {
