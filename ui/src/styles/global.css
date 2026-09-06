@@ -306,15 +306,21 @@
 
   .disclosure-summary {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
+    flex-direction: column;
     gap: 0.75rem;
     padding: 1rem;
-    font-size: 1.125rem;
-    font-weight: 600;
     list-style: none;
     cursor: pointer;
     user-select: none;
+  }
+
+  .disclosure-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    font-size: 1.125rem;
+    font-weight: 600;
   }
 
   .disclosure-title {

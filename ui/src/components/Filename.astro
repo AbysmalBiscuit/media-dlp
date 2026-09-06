@@ -1,26 +1,32 @@
 ---
-import Icon from './Icon.astro';
+import Disclosure from './Disclosure.astro';
 ---
 
-<section>
-  <span class="field-label"><Icon name="file-pen" /> File name</span>
-  <div class="option-grid mt-2">
-    <label class="option"><input type="checkbox" data-filename="channel" /> <span>Channel</span></label>
-    <label class="option"><input type="checkbox" data-filename="upload-date" /> <span>Upload date</span></label>
-    <label class="option"><input type="checkbox" data-filename="playlist-number" /> <span>Playlist number</span></label>
-    <label class="option"><input type="checkbox" data-filename="title" /> <span>Title</span></label>
-    <label class="option"><input type="checkbox" checked disabled /> <span>Video ID</span></label>
-  </div>
-  <p class="note mt-2">
-    The video ID is always part of the name, so two videos never overwrite each other.
-  </p>
+<Disclosure title="File name" icon="file-pen">
+  <span
+    slot="summary"
+    id="filename-preview"
+    class="block truncate rounded-lg bg-[var(--surface-muted)] px-3 py-2 font-mono"></span>
 
-  <span class="field-label mt-4">Separator</span>
-  <div class="option-grid mt-2">
-    <label class="option"><input type="radio" name="separator" data-separator value="dash" /> <span>Dash</span></label>
-    <label class="option"><input type="radio" name="separator" data-separator value="underscore" /> <span>Underscore</span></label>
-    <label class="option"><input type="radio" name="separator" data-separator value="space" /> <span>Space</span></label>
-  </div>
+  <section>
+    <div class="option-grid">
+      <label class="option"><input type="checkbox" data-filename="playlist-number" /> <span>Playlist number</span></label>
+      <label class="option"><input type="checkbox" data-filename="upload-date" /> <span>Upload date</span></label>
+      <label class="option"><input type="checkbox" data-filename="channel" /> <span>Channel</span></label>
+      <label class="option"><input type="checkbox" data-filename="title" /> <span>Title</span></label>
+      <label class="option"><input type="checkbox" checked disabled /> <span>Video ID</span></label>
+    </div>
+    <p class="note mt-2">
+      The video ID is always part of the name, so two videos never overwrite each other.
+    </p>
+  </section>
 
-  <p id="filename-preview" class="mt-4 truncate rounded-lg bg-[var(--surface-muted)] px-3 py-2 font-mono"></p>
-</section>
+  <section>
+    <span class="field-label">Separator</span>
+    <div class="option-grid mt-2">
+      <label class="option"><input type="radio" name="separator" data-separator value="dash" /> <span>Dash</span></label>
+      <label class="option"><input type="radio" name="separator" data-separator value="underscore" /> <span>Underscore</span></label>
+      <label class="option"><input type="radio" name="separator" data-separator value="space" /> <span>Space</span></label>
+    </div>
+  </section>
+</Disclosure>
