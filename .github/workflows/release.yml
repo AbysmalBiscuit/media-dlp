@@ -28,8 +28,6 @@ jobs:
   bundle:
     name: ${{ matrix.target }}
     runs-on: ${{ matrix.os }}
-    env:
-      BUN_INSTALL_CACHE_DIR: ${{ runner.temp }}/bun-cache
     strategy:
       fail-fast: false
       matrix:
@@ -78,11 +76,13 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - uses: actions/cache@v4
         with:
-          path: ${{ env.BUN_INSTALL_CACHE_DIR }}
+          path: ${{ runner.temp }}/bun-cache
           key: bun-${{ runner.os }}-${{ hashFiles('ui/bun.lock') }}
           restore-keys: bun-${{ runner.os }}-
 
       - run: bun install --frozen-lockfile --cwd ui
+        env:
+          BUN_INSTALL_CACHE_DIR: ${{ runner.temp }}/bun-cache
 
       # `binaries/` is gitignored, so every bundle build populates it first.
       # yt-dlp resolves ffprobe from whatever directory holds ffmpeg, so the two
