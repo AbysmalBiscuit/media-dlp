@@ -74,7 +74,7 @@ jobs:
           key: ${{ matrix.target }}
 
       - uses: oven-sh/setup-bun@v2
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: ${{ runner.temp }}/bun-cache
           key: bun-${{ runner.os }}-${{ hashFiles('ui/bun.lock') }}
