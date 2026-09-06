@@ -28,6 +28,8 @@ jobs:
   bundle:
     name: ${{ matrix.target }}
     runs-on: ${{ matrix.os }}
+    env:
+      BUN_INSTALL_CACHE_DIR: ${{ runner.temp }}/bun-cache
     strategy:
       fail-fast: false
       matrix:
@@ -66,11 +68,19 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
+      # The two macOS targets build on the same runner, so without the target
+      # in the key they share one cache entry and only one of them benefits.
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri -> target
+          key: ${{ matrix.target }}
 
       - uses: oven-sh/setup-bun@v2
+      - uses: actions/cache@v4
+        with:
+          path: ${{ env.BUN_INSTALL_CACHE_DIR }}
+          key: bun-${{ runner.os }}-${{ hashFiles('ui/bun.lock') }}
+          restore-keys: bun-${{ runner.os }}-
 
       - run: bun install --frozen-lockfile --cwd ui
 
