@@ -56,8 +56,8 @@ export function previewFilename(
   if (f['playlist-number'] && source.playlistCount) parts.push('1');
   if (f['upload-date'] && source.uploadDate) parts.push(formatUploadDate(source.uploadDate));
   if (f.channel && source.uploader) parts.push(sanitize(source.uploader));
-  parts.push(sanitize(source.title));
-  if (source.id) parts.push(source.id);
+  if (f.title) parts.push(sanitize(source.title));
+  parts.push(source.id);
   const stem = parts.join(separator).slice(0, TRIM_FILENAME_LENGTH);
   return `${stem}.${extension}`;
 }

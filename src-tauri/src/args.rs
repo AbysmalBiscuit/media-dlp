@@ -92,17 +92,15 @@ pub fn filename_template(f: &FilenameSettings) -> String {
         (f.playlist_number, "playlist_index"),
         (f.upload_date, "upload_date>%Y-%m-%d"),
         (f.channel, "uploader"),
+        (f.title, "title"),
     ] {
         if enabled {
             t.push_str(&format!("%({field}&{{}}{sep}|)s"));
         }
     }
-    // The title and the id are not chips: Instagram gives every post by an
-    // account the same title, so without the id the second download overwrites
-    // the first.
-    t.push_str("%(title)s");
-    t.push_str(&format!("%(id&{sep}{{}}|)s"));
-    t.push_str(".%(ext)s");
+    // The id is not a chip: Instagram gives every post by an account the same
+    // title, so without the id the second download overwrites the first.
+    t.push_str("%(id)s.%(ext)s");
     t
 }
 
@@ -208,14 +206,27 @@ mod tests {
     }
 
     #[test]
-    fn title_and_id_template_when_every_chip_is_off() {
+    fn title_and_id_template_when_every_other_chip_is_off() {
         let f = FilenameSettings {
             channel: false,
             upload_date: false,
             playlist_number: false,
+            title: true,
             separator: Separator::Dash,
         };
-        assert_eq!(filename_template(&f), "%(title)s%(id& - {}|)s.%(ext)s");
+        assert_eq!(filename_template(&f), "%(title&{} - |)s%(id)s.%(ext)s");
+    }
+
+    #[test]
+    fn the_id_alone_when_every_chip_is_off() {
+        let f = FilenameSettings {
+            channel: false,
+            upload_date: false,
+            playlist_number: false,
+            title: false,
+            separator: Separator::Dash,
+        };
+        assert_eq!(filename_template(&f), "%(id)s.%(ext)s");
     }
 
     #[test]
@@ -224,11 +235,12 @@ mod tests {
             channel: true,
             upload_date: true,
             playlist_number: true,
+            title: true,
             separator: Separator::Dash,
         };
         assert_eq!(
             filename_template(&f),
-            "%(playlist_index&{} - |)s%(upload_date>%Y-%m-%d&{} - |)s%(uploader&{} - |)s%(title)s%(id& - {}|)s.%(ext)s"
+            "%(playlist_index&{} - |)s%(upload_date>%Y-%m-%d&{} - |)s%(uploader&{} - |)s%(title&{} - |)s%(id)s.%(ext)s"
         );
     }
 
@@ -238,11 +250,12 @@ mod tests {
             channel: true,
             upload_date: false,
             playlist_number: true,
+            title: true,
             separator: Separator::Underscore,
         };
         assert_eq!(
             filename_template(&f),
-            "%(playlist_index&{}_|)s%(uploader&{}_|)s%(title)s%(id&_{}|)s.%(ext)s"
+            "%(playlist_index&{}_|)s%(uploader&{}_|)s%(title&{}_|)s%(id)s.%(ext)s"
         );
     }
 
@@ -255,7 +268,7 @@ mod tests {
         };
         assert_eq!(
             filename_template(&f),
-            "%(upload_date>%Y-%m-%d&{} - |)s%(title)s%(id& - {}|)s.%(ext)s"
+            "%(upload_date>%Y-%m-%d&{} - |)s%(title&{} - |)s%(id)s.%(ext)s"
         );
     }
 
@@ -264,7 +277,7 @@ mod tests {
         let f = FilenameSettings::default();
         assert_eq!(
             filename_template(&f),
-            "%(playlist_index&{} - |)s%(title)s%(id& - {}|)s.%(ext)s"
+            "%(playlist_index&{} - |)s%(title&{} - |)s%(id)s.%(ext)s"
         );
     }
 
@@ -384,7 +397,7 @@ mod tests {
         assert_eq!(arg_after(&argv, "-P").unwrap(), r"C:\Downloads");
         assert_eq!(
             arg_after(&argv, "-o").unwrap(),
-            "%(playlist_index&{} - |)s%(title)s%(id& - {}|)s.%(ext)s"
+            "%(playlist_index&{} - |)s%(title&{} - |)s%(id)s.%(ext)s"
         );
         assert_eq!(arg_after(&argv, "--trim-filenames").unwrap(), "120");
         assert_eq!(

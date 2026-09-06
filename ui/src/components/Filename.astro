@@ -8,12 +8,11 @@ import Icon from './Icon.astro';
     <label class="option"><input type="checkbox" data-filename="channel" /> <span>Channel</span></label>
     <label class="option"><input type="checkbox" data-filename="upload-date" /> <span>Upload date</span></label>
     <label class="option"><input type="checkbox" data-filename="playlist-number" /> <span>Playlist number</span></label>
-    <label class="option"><input type="checkbox" checked disabled /> <span>Title</span></label>
+    <label class="option"><input type="checkbox" data-filename="title" /> <span>Title</span></label>
     <label class="option"><input type="checkbox" checked disabled /> <span>Video ID</span></label>
   </div>
   <p class="note mt-2">
-    The title and the video ID are always part of the name, so two videos never overwrite each
-    other.
+    The video ID is always part of the name, so two videos never overwrite each other.
   </p>
 
   <span class="field-label mt-4">Separator</span>

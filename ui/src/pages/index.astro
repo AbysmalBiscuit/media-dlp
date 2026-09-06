@@ -184,7 +184,7 @@ import '../styles/global.css';
       for (const box of document.querySelectorAll<HTMLInputElement>('[data-filename]')) {
         box.checked = Boolean(settings.filename[box.dataset.filename as keyof FilenameSettings]);
         box.addEventListener('change', async () => {
-          const key = box.dataset.filename as 'channel' | 'upload-date' | 'playlist-number';
+          const key = box.dataset.filename as Exclude<keyof FilenameSettings, 'separator'>;
           settings.filename[key] = box.checked;
           refreshPreview();
           await saveSettings(settings);

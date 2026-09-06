@@ -16,12 +16,17 @@ const chips = (over: Partial<FilenameSettings> = {}): FilenameSettings => ({
   channel: false,
   'upload-date': false,
   'playlist-number': false,
+  title: true,
   separator: 'dash',
   ...over,
 });
 
-test('title and id only when every chip is off', () => {
+test('title and id only when every other chip is off', () => {
   expect(previewFilename(chips(), info, 'mp4')).toBe('A Video - dQw4w9WgXcQ.mp4');
+});
+
+test('the id alone when every chip is off', () => {
+  expect(previewFilename(chips({ title: false }), info, 'mp4')).toBe('dQw4w9WgXcQ.mp4');
 });
 
 test('chips compose in a fixed order', () => {
@@ -37,9 +42,9 @@ test('the separator reaches every chip', () => {
 });
 
 test('a chip whose field is missing contributes nothing', () => {
-  const bare = { ...info, uploader: null, uploadDate: null, playlistCount: null, id: '' };
+  const bare = { ...info, uploader: null, uploadDate: null, playlistCount: null };
   const f = chips({ channel: true, 'upload-date': true, 'playlist-number': true });
-  expect(previewFilename(f, bare, 'mp4')).toBe('A Video.mp4');
+  expect(previewFilename(f, bare, 'mp4')).toBe('A Video - dQw4w9WgXcQ.mp4');
 });
 
 test('an eight-digit upload date is rendered as YYYY-MM-DD', () => {
