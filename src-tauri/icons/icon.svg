@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <!-- A tap: turn the stream into a drop you can keep. -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0ea5e9"/>
+      <stop offset="1" stop-color="#0369a1"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="240" height="240" rx="56" fill="url(#bg)"/>
+  <g fill="#fff">
+    <rect x="80" y="40" width="88" height="26" rx="13"/>
+    <rect x="108" y="56" width="32" height="46"/>
+    <rect x="52" y="92" width="148" height="40" rx="20"/>
+    <rect x="160" y="92" width="40" height="80" rx="20"/>
+  </g>
+  <path d="M158 194 H202 L180 226 Z" fill="#fde047" stroke="#fde047" stroke-width="8" stroke-linejoin="round"/>
+</svg>

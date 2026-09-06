@@ -124,6 +124,7 @@ pub struct FilenameSettings {
     pub channel: bool,
     pub upload_date: bool,
     pub playlist_number: bool,
+    pub title: bool,
     pub separator: Separator,
 }
 
@@ -133,6 +134,7 @@ impl Default for FilenameSettings {
             channel: false,
             upload_date: false,
             playlist_number: true,
+            title: true,
             separator: Separator::Dash,
         }
     }
