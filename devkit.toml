@@ -17,7 +17,19 @@ pr_repo = "AbysmalBiscuit/media-dlp"
 [tracker]
 kind = "github"
 
-[apps]
+# The Astro dev server. The registry hands each worktree its own port, and
+# the dev task passes that port to the Tauri CLI, so two checkouts can run
+# side by side.
+[apps.ui]
+path = "ui"
+base_port = 1420
+# Node is run directly so the pid devkit tracks is the one holding the socket,
+# and the IPv4 host is what devkit's listener probe connects to.
+launch = ["node", "node_modules/astro/bin/astro.mjs", "dev", "--host", "127.0.0.1", "--port", "{{ port }}", "--ignore-lock"]
+# Astro daemonises its dev server when it detects an agent session, which
+# would leave devkit supervising a process that has already exited. This is
+# the variable the daemon sets for its child, and it disables the detection.
+static_env = { ASTRO_DEV_BACKGROUND = "1" }
 
 [tasks.fmt]
 description = "Format the Rust sources"
@@ -48,12 +60,33 @@ description = "Build the Astro frontend"
 run = ["bun", "run", "--cwd", "ui", "build"]
 
 [tasks.dev]
-description = "Run the Tauri app with the Astro dev server"
-run = ["ui/node_modules/.bin/tauri.exe", "dev", "--config", "src-tauri/tauri.conf.json"]
+description = "Run the Tauri app against a registry-allocated Astro dev server"
+steps = [
+  { up = "ui" },
+  { task = "tauri-dev" },
+]
+
+# The inline config points Tauri at the devkit-managed server and drops the
+# beforeDevCommand that would otherwise start a second one on the fixed port.
+[tasks.tauri-dev]
+description = "Open the Tauri window against the live ui server"
+run = [
+  "ui/node_modules/.bin/tauri.exe", "dev",
+  "--config", "src-tauri/tauri.conf.json",
+  "--config", '''{"build":{"devUrl":"http://localhost:{{ ports['ui'] }}","beforeDevCommand":null}}''',
+]
 
 [tasks.build]
 description = "Build the installer"
 run = ["ui/node_modules/.bin/tauri.exe", "build", "--config", "src-tauri/tauri.conf.json"]
+
+[tasks.exe]
+description = "Build the release exe without an installer"
+run = ["ui/node_modules/.bin/tauri.exe", "build", "--no-bundle", "--config", "src-tauri/tauri.conf.json"]
+
+[tasks.exe-debug]
+description = "Build the debug exe without an installer"
+run = ["ui/node_modules/.bin/tauri.exe", "build", "--debug", "--no-bundle", "--config", "src-tauri/tauri.conf.json"]
 
 [tasks.ui-test]
 description = "Run the frontend unit tests"

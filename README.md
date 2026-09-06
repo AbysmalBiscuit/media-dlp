@@ -8,7 +8,9 @@ The commands below are devkit tasks, so devkit has to be installed to run them. 
 
 ## Running it
 
-`devrun task dev` starts the Astro dev server and the Tauri window together.
+`devrun task dev` starts the Astro dev server on a port from the devkit registry and opens the Tauri window against it. The server stays up after the window closes, so the next run reuses it; `devrun down` stops it.
+
+`devrun task exe` builds the release exe without an installer, and `devrun task exe-debug` the debug one. Both land under `src-tauri/target/`.
 
 ## Tests
 
