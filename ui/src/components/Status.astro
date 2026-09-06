@@ -25,12 +25,14 @@ import Icon from './Icon.astro';
     </button>
   </div>
 
-  <div id="result" hidden class="card">
-    <p id="result-message"></p>
-    <button id="open-folder" type="button" hidden class="btn btn-quiet mt-3">
-      <Icon name="folder-open" /> Open folder
-    </button>
-    <details id="result-details" hidden class="mt-3">
+  <div id="result" hidden class="card flex flex-col gap-3">
+    <div class="flex items-center justify-between gap-3">
+      <p id="result-message"></p>
+      <button id="open-folder" type="button" hidden class="btn btn-quiet">
+        <Icon name="folder-open" /> Open folder
+      </button>
+    </div>
+    <details id="result-details" hidden>
       <summary class="cursor-pointer text-[var(--ink-muted)]">Show details</summary>
       <pre id="result-log" class="log mt-2"></pre>
       <button id="copy-log" type="button" class="btn btn-quiet mt-2">
