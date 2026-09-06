@@ -71,22 +71,22 @@ steps = [
 [tasks.tauri-dev]
 description = "Open the Tauri window against the live ui server"
 run = [
-  "ui/node_modules/.bin/tauri.exe", "dev",
+  "bun", "ui/node_modules/@tauri-apps/cli/tauri.js", "dev",
   "--config", "src-tauri/tauri.conf.json",
   "--config", '''{"build":{"devUrl":"http://localhost:{{ ports['ui'] }}","beforeDevCommand":null}}''',
 ]
 
 [tasks.build]
 description = "Build the installer"
-run = ["ui/node_modules/.bin/tauri.exe", "build", "--config", "src-tauri/tauri.conf.json"]
+run = ["bun", "ui/node_modules/@tauri-apps/cli/tauri.js", "build", "--config", "src-tauri/tauri.conf.json"]
 
 [tasks.exe]
 description = "Build the release exe without an installer"
-run = ["ui/node_modules/.bin/tauri.exe", "build", "--no-bundle", "--config", "src-tauri/tauri.conf.json"]
+run = ["bun", "ui/node_modules/@tauri-apps/cli/tauri.js", "build", "--no-bundle", "--config", "src-tauri/tauri.conf.json"]
 
 [tasks.exe-debug]
 description = "Build the debug exe without an installer"
-run = ["ui/node_modules/.bin/tauri.exe", "build", "--debug", "--no-bundle", "--config", "src-tauri/tauri.conf.json"]
+run = ["bun", "ui/node_modules/@tauri-apps/cli/tauri.js", "build", "--debug", "--no-bundle", "--config", "src-tauri/tauri.conf.json"]
 
 [tasks.ui-test]
 description = "Run the frontend unit tests"
