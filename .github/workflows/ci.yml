@@ -82,3 +82,16 @@ jobs:
       - run: bun install --frozen-lockfile --cwd ui
       - run: bun run --cwd ui astro check
       - run: bun test ui
+
+  # Single required status check for the branch ruleset, so matrix legs can be
+  # added or renamed without editing the ruleset. `always()` is what makes a
+  # failed dependency reach the guard step instead of skipping this job, since a
+  # skipped required check blocks a pull request rather than failing it.
+  ci:
+    name: ci
+    runs-on: ubuntu-latest
+    needs: [fmt, clippy, test, frontend]
+    if: always()
+    steps:
+      - if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped')
+        run: exit 1
