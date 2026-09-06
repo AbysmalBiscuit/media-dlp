@@ -4,8 +4,15 @@ on:
   push:
     tags: ['v[0-9]+.[0-9]+.[0-9]+']
   # Building without a tag exercises the whole matrix without cutting a release;
-  # attaching the bundles is the only step a tag gates.
+  # attaching the bundles is the only step a tag gates. Naming an existing
+  # release attaches the bundles to it, which is how a release that lost an
+  # asset to a failed job gets it back without moving the tag.
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing release tag to attach the bundles to
+        required: false
+        type: string
 
 permissions:
   contents: write
@@ -109,11 +116,12 @@ jobs:
           args: --target ${{ matrix.target }}
 
       - name: Attach the bundles to the release
-        if: startsWith(github.ref, 'refs/tags/')
+        if: startsWith(github.ref, 'refs/tags/') || inputs.release_tag != ''
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ARTIFACT_PATHS: ${{ steps.build.outputs.artifactPaths }}
+          RELEASE_TAG: ${{ inputs.release_tag || github.ref_name }}
         run: |
           set -euo pipefail
 
@@ -135,5 +143,5 @@ jobs:
           fi
 
           printf 'uploading %s\n' "${paths[@]}"
-          gh release upload "$GITHUB_REF_NAME" "${paths[@]}" --clobber \
+          gh release upload "$RELEASE_TAG" "${paths[@]}" --clobber \
             --repo "$GITHUB_REPOSITORY"
