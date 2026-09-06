@@ -119,9 +119,12 @@ jobs:
 
           # `.app` is a directory, and the action reports it before repacking it
           # into the dmg. Reading line by line rather than with mapfile keeps
-          # this working under the bash 3.2 on the macOS runners.
+          # this working under the bash 3.2 on the macOS runners. jq on the
+          # Windows runner ends lines with CRLF, so the CR has to go or gh
+          # looks for a file that does not exist.
           paths=()
           while IFS= read -r path; do
+            path=${path%$'\r'}
             case "$path" in *.app) continue ;; esac
             paths+=("$path")
           done < <(jq -r '.[]' <<< "$ARTIFACT_PATHS")
